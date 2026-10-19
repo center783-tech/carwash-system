@@ -1,0 +1,23 @@
+ALTER TABLE members
+    MODIFY status INT NOT NULL DEFAULT 1;
+
+ALTER TABLE services
+    MODIFY status INT NOT NULL DEFAULT 1;
+
+ALTER TABLE employees
+    MODIFY status INT NOT NULL DEFAULT 1;
+
+ALTER TABLE employee_schedules
+    MODIFY status INT NOT NULL DEFAULT 1;
+
+ALTER TABLE coupons
+    MODIFY status INT NOT NULL DEFAULT 1;
+
+ALTER TABLE member_coupons
+    MODIFY is_used INT NOT NULL DEFAULT 0;
+
+ALTER TABLE reviews
+    MODIFY rating INT NOT NULL;
+
+ALTER TABLE admins
+    MODIFY status INT NOT NULL DEFAULT 1;

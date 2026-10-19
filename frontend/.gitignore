@@ -1,0 +1,49 @@
+HELP.md
+target/
+.env
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# 本機覆寫用的環境變數（.env / .env.production 本身是團隊共用設定，可以提交；
+# 但 .local 這種個人覆寫檔不要提交）
+.env.local
+.env.*.local
+ 
+node_modules/
+dist/
+ 
+# IDE
+.idea/
+.vscode/
+ 
+# OS
+.DS_Store
