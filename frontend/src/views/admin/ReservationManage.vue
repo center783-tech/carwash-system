@@ -1,4 +1,6 @@
 <template>
+  <div>
+  <AdminNav />
   <div class="page-container">
     <div class="header-row">
       <h2>預約管理</h2>
@@ -27,11 +29,13 @@
       </el-table-column>
     </el-table>
   </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import AdminNav from '@/components/AdminNav.vue'
 import { listReservationsByDate, confirmReservation, completeReservation } from '@/api/reservation'
 
 const reservations = ref([])

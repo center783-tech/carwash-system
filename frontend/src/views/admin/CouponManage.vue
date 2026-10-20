@@ -1,4 +1,6 @@
 <template>
+  <div>
+  <AdminNav />
   <div class="page-container">
     <div class="header-row">
       <h2>優惠券管理</h2>
@@ -58,11 +60,13 @@
       </template>
     </el-dialog>
   </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import AdminNav from '@/components/AdminNav.vue'
 import { listActiveCoupons, createCoupon, issueCouponToMember } from '@/api/coupon'
 
 const coupons = ref([])

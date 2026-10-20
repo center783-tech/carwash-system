@@ -1,6 +1,7 @@
 <template>
   <div class="auth-page">
     <el-card class="auth-card">
+      <router-link to="/" class="auth-brand">洗享快</router-link>
       <h2>會員註冊</h2>
       <el-form :model="form" label-position="top" @submit.prevent="handleRegister">
         <el-form-item label="帳號">
@@ -18,7 +19,7 @@
         <el-form-item label="姓名（選填）">
           <el-input v-model="form.realName" />
         </el-form-item>
-        <el-button type="primary" :loading="loading" native-type="submit" style="width: 100%">
+        <el-button type="primary" :loading="loading" native-type="submit" round style="width: 100%">
           註冊
         </el-button>
       </el-form>
@@ -57,13 +58,24 @@ async function handleRegister() {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: var(--el-fill-color-light, #f5f7fa);
+  background: var(--ink);
+  padding: 32px 24px;
 }
 .auth-card {
   width: 400px;
 }
+.auth-brand {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--rinse-deep);
+  text-decoration: none;
+  margin-bottom: 4px;
+}
 .auth-links {
   margin-top: 12px;
   text-align: center;
+  font-size: 14px;
 }
 </style>

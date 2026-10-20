@@ -1,4 +1,6 @@
 <template>
+  <div>
+  <AdminNav />
   <div class="page-container">
     <div class="header-row">
       <h2>員工管理</h2>
@@ -43,11 +45,13 @@
       </template>
     </el-dialog>
   </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import AdminNav from '@/components/AdminNav.vue'
 import { listEmployees, createEmployee, assignServices } from '@/api/employee'
 import { listServices } from '@/api/service'
 

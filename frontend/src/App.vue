@@ -1,18 +1,16 @@
 <template>
   <el-config-provider>
+    <NavBar v-if="showNavBar" />
     <router-view />
   </el-config-provider>
 </template>
 
 <script setup>
-// 全域只負責渲染 router-view，版面（導覽列等）交給各自的 Layout 元件處理，
-// 方便會員端跟後台管理端用不同的版面。
-</script>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import NavBar from '@/components/NavBar.vue'
 
-<style>
-html, body, #app {
-  height: 100%;
-  margin: 0;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang TC', 'Microsoft JhengHei', Arial, sans-serif;
-}
-</style>
+const route = useRoute()
+// 登入/註冊頁跟後台（有自己的導覽列）不顯示這個會員端 NavBar
+const showNavBar = computed(() => !route.meta.hideNavBar)
+</script>

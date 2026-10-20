@@ -1,14 +1,6 @@
 <template>
-  <div class="admin-layout">
-    <el-menu mode="horizontal" :default-active="route.path" router class="admin-menu">
-      <el-menu-item index="/admin/dashboard">總覽</el-menu-item>
-      <el-menu-item index="/admin/reservations">預約管理</el-menu-item>
-      <el-menu-item index="/admin/services">服務項目</el-menu-item>
-      <el-menu-item index="/admin/employees">員工管理</el-menu-item>
-      <el-menu-item index="/admin/coupons">優惠券</el-menu-item>
-      <div class="menu-spacer" />
-      <el-menu-item @click="handleLogout">登出</el-menu-item>
-    </el-menu>
+  <div>
+    <AdminNav />
 
     <div class="page-container">
       <h2>管理總覽</h2>
@@ -38,33 +30,19 @@
 </template>
 
 <script setup>
-import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/store/auth'
-
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
-
-function handleLogout() {
-  authStore.logout()
-  router.push('/admin/login')
-}
+import AdminNav from '@/components/AdminNav.vue'
 </script>
 
 <style scoped>
-.admin-menu {
-  display: flex;
-}
-.menu-spacer {
-  flex-grow: 1;
-}
 .page-container {
   max-width: 1100px;
   margin: 24px auto;
   padding: 0 16px;
 }
 .stat-number {
+  font-family: var(--font-display);
   font-size: 28px;
-  font-weight: bold;
+  font-weight: 700;
+  color: var(--rinse-deep);
 }
 </style>

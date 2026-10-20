@@ -1,4 +1,6 @@
 <template>
+  <div>
+  <AdminNav />
   <div class="page-container">
     <div class="header-row">
       <h2>服務項目管理</h2>
@@ -37,11 +39,13 @@
       </template>
     </el-dialog>
   </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import AdminNav from '@/components/AdminNav.vue'
 import { listServices, createService, updateService, deleteService } from '@/api/service'
 
 const services = ref([])

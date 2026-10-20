@@ -1,0 +1,86 @@
+/* =========================================================
+   設計 token — 「沖洗」與「打蠟」兩種質感的對比
+   ========================================================= */
+:root {
+  --ink: #14202b;        /* 深色基底：濕瀝青藍黑，不是純黑 */
+  --ink-soft: #1f3140;   /* 墨藍的淺一階版本，用在卡片/區塊背景 */
+  --paper: #f3f6f6;      /* 淺色基底：偏冷白，不是暖米白 */
+  --paper-dim: #e4eaea;
+  --rinse: #1c7c8c;      /* 主色：沖洗水的青色 */
+  --rinse-deep: #155f6c;
+  --wax: #e8a33d;        /* 強調色：打蠟的暖金色，用在金額/優惠/CTA */
+  --wax-deep: #c6822199;
+  --ink-text-secondary: #6b7780;
+  --danger: #c0493f;
+
+  --font-display: 'Noto Serif TC', serif;
+  --font-body: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-card: 0 1px 2px rgba(20, 32, 43, 0.06), 0 4px 16px rgba(20, 32, 43, 0.06);
+}
+
+/* ---------- 基礎排版 ---------- */
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+a {
+  color: var(--rinse-deep);
+}
+
+/* ---------- Element Plus 變數覆寫：讓全站元件自動套用同一套配色 ---------- */
+:root {
+  --el-color-primary: var(--rinse);
+  --el-color-primary-light-3: #4a9aa6;
+  --el-color-primary-light-5: #7fb7c0;
+  --el-color-primary-light-7: #b4d5da;
+  --el-color-primary-light-9: #e3eff0;
+  --el-color-primary-dark-2: var(--rinse-deep);
+
+  --el-color-success: #3f8c5f;
+  --el-color-warning: var(--wax);
+  --el-color-danger: var(--danger);
+
+  --el-border-radius-base: var(--radius-sm);
+  --el-border-radius-round: var(--radius-md);
+  --el-font-family: var(--font-body);
+}
+
+.el-card {
+  --el-card-border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card) !important;
+  border: 1px solid var(--paper-dim) !important;
+}
+
+.el-button {
+  font-weight: 500;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--rinse);
+  --el-button-border-color: var(--rinse);
+  --el-button-hover-bg-color: var(--rinse-deep);
+  --el-button-hover-border-color: var(--rinse-deep);
+}
+
+/* 金額、價格這類「蠟光」強調數字共用的樣式 */
+.price-tag {
+  color: var(--wax-deep);
+  font-weight: 700;
+}
