@@ -45,7 +45,7 @@ public class EmployeeScheduleController {
     public ApiResponse<List<EmployeeScheduleResponse>> listByDate(
             @PathVariable Long employeeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ApiResponse.success(scheduleService.listByDate(date).stream()
+        return ApiResponse.success(scheduleService.listByEmployeeAndDate(employeeId, date).stream()
                 .map(EmployeeScheduleResponse::from).collect(Collectors.toList()));
     }
 

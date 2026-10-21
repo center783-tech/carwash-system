@@ -7,7 +7,7 @@ INSERT INTO admins (
 )
 SELECT
     'admin',
-    'admin', -- hashed password for 'admin'
+    '$2a$10$cz.NPNTBtPnI2Zd9TdYc/u1h38VWb97mCzIhiWKQmJCO0RhzOT5tC', -- hashed password for 'admin'
     'ADMIN',
     1,
     NOW()

@@ -3,3 +3,6 @@ cd backend
 
 cd frontend
 npm run dev
+
+cd /mnt/c/Users/USER/Desktop/project/carwash-system/backend
+cd /mnt/c/Users/USER/Desktop/project/carwash-system/frontend

@@ -43,6 +43,12 @@ public class EmployeeScheduleServiceImpl implements EmployeeScheduleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<EmployeeSchedule> listByEmployeeAndDate(Long employeeId, LocalDate date) {
+        return scheduleRepository.findByEmployeeIdAndWorkDate(employeeId, date);
+    }
+
+    @Override
     public void markLeave(Long scheduleId) {
         EmployeeSchedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> ResourceNotFoundException.of("EmployeeSchedule", scheduleId));

@@ -96,8 +96,7 @@ async function handleCreate() {
 
 function openAssignDialog(row) {
   currentEmployeeId.value = row.id
-  // 後端目前回傳的是服務項目名稱而非 id，實際串接時建議讓 EmployeeResponse 多回傳 serviceItemIds 方便預選
-  selectedServiceIds.value = []
+  selectedServiceIds.value = [...(row.serviceItemIds || [])]
   assignDialogVisible.value = true
 }
 

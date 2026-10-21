@@ -36,6 +36,7 @@ public class RedisConfig {
         BasicPolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
                 .allowIfSubType("com.carwash.")
                 .allowIfSubType("java.util")
+                .allowIfSubType("java.math")
                 .build();
         objectMapper.activateDefaultTyping(typeValidator, ObjectMapper.DefaultTyping.NON_FINAL);
 
