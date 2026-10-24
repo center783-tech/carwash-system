@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  APP_DIR: /home/ubuntu/carwash
+  APP_DIR: /home/ubuntu/carwash/backend
   JAR_NAME: app.jar
 
 jobs:
