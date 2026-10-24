@@ -103,6 +103,14 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          if-no-files-found: error
+          retention-days: 1
+
   deploy:
     name: Deploy to EC2
     needs: test
@@ -111,22 +119,20 @@ jobs:
     environment: production
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
       - name: Download backend JAR
         uses: actions/download-artifact@v4
         with:
           name: backend-jar
           path: deploy
 
-      - name: Package frontend source
-        run: |
-          tar -czf deploy/frontend.tar.gz \
-            --exclude=node_modules --exclude=dist \
-            -C frontend .
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: deploy/dist
+
+      - name: Package frontend dist
+        run: tar -czf deploy/frontend-dist.tar.gz -C deploy/dist .
 
       - name: Configure SSH
         env:
@@ -152,11 +158,11 @@ jobs:
         run: |
           SSH_OPTS="-i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10"
           ssh $SSH_OPTS "$EC2_USER@$EC2_HOST" \
-            "mkdir -p $APP_DIR/backend/target $APP_DIR/frontend"
+            "mkdir -p $APP_DIR/backend/target"
           scp $SSH_OPTS "deploy/${JAR_NAME}" \
             "$EC2_USER@$EC2_HOST:$APP_DIR/backend/target/${JAR_NAME}.new"
-          scp $SSH_OPTS deploy/frontend.tar.gz \
-            "$EC2_USER@$EC2_HOST:$APP_DIR/frontend.tar.gz"
+          scp $SSH_OPTS deploy/frontend-dist.tar.gz \
+            "$EC2_USER@$EC2_HOST:$APP_DIR/frontend-dist.tar.gz"
 
       - name: Restart services and verify
         env:
@@ -184,25 +190,34 @@ jobs:
           }
 
           stop_backend() {
-            pkill -f "java -jar .*$JAR_NAME" || true
+            pkill -f "java -jar $CURRENT_JAR" || true
             for i in $(seq 1 15); do
-              pgrep -f "java -jar .*$JAR_NAME" > /dev/null || return 0
+              pgrep -f "java -jar $CURRENT_JAR" > /dev/null || return 0
               sleep 1
             done
-            pkill -9 -f "java -jar .*$JAR_NAME" || true
+            pkill -9 -f "java -jar $CURRENT_JAR" || true
           }
 
           # ---- Frontend ----
-          tar -xzf "$APP_DIR/frontend.tar.gz" -C "$APP_DIR/frontend"
-          rm -f "$APP_DIR/frontend.tar.gz"
-          cd "$APP_DIR/frontend"
-          npm ci --no-audit --no-fund
-          if pm2 describe carwash-frontend > /dev/null 2>&1; then
-            pm2 restart carwash-frontend
-          else
-            pm2 start npx --name carwash-frontend -- vite --host 0.0.0.0 --port 5174
+          # 前端已在 GitHub 建置完成，Nginx 直接提供 frontend-dist 靜態檔
+          NEW_DIST="$APP_DIR/frontend-dist.new"
+          rm -rf "$NEW_DIST"
+          mkdir -p "$NEW_DIST"
+          tar -xzf "$APP_DIR/frontend-dist.tar.gz" -C "$NEW_DIST"
+          rm -f "$APP_DIR/frontend-dist.tar.gz"
+          test -s "$NEW_DIST/index.html"
+          rm -rf "$APP_DIR/frontend-dist.old"
+          if test -d "$APP_DIR/frontend-dist"; then
+            mv "$APP_DIR/frontend-dist" "$APP_DIR/frontend-dist.old"
           fi
-          pm2 save
+          mv "$NEW_DIST" "$APP_DIR/frontend-dist"
+          rm -rf "$APP_DIR/frontend-dist.old"
+
+          # 不再需要 Vite 開發伺服器，移除舊的 pm2 程序釋放記憶體
+          if pm2 describe carwash-frontend > /dev/null 2>&1; then
+            pm2 delete carwash-frontend
+            pm2 save
+          fi
 
           # ---- Backend ----
           stop_backend
