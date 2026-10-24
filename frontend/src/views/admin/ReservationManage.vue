@@ -4,16 +4,29 @@
   <div class="page-container">
     <div class="header-row">
       <h2>預約管理</h2>
-      <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          unlink-panels
-          range-separator="至"
-          start-placeholder="開始日期"
-          end-placeholder="結束日期"
-          value-format="YYYY-MM-DD"
-          @change="fetchData"
-      />
+    </div>
+
+    <div class="filter-panel">
+      <div class="filter-row">
+        <span class="filter-label">快速選擇</span>
+        <el-radio-group v-model="quickRange" @change="onQuickChange">
+          <el-radio-button value="today">今天</el-radio-button>
+          <el-radio-button value="week">未來一週</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">自訂日期</span>
+        <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            unlink-panels
+            range-separator="至"
+            start-placeholder="開始日期"
+            end-placeholder="結束日期"
+            value-format="YYYY-MM-DD"
+            @change="onCustomChange"
+        />
+      </div>
     </div>
 
     <el-table :data="reservations" v-loading="loading">
@@ -66,12 +79,36 @@ const statusMap = {
 const statusText = (s) => statusMap[s]?.text || s
 const statusTagType = (s) => statusMap[s]?.type || 'info'
 
-function todayString() {
-  return new Date().toISOString().slice(0, 10)
+// 日期一律用「本地時區」組字串；toISOString() 是 UTC，台灣凌晨 0~8 點會變成前一天
+function toDateString(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-// 預設查「今天」這一天，使用者可以再自己調整成任意範圍
-const dateRange = ref([todayString(), todayString()])
+function rangeFor(type) {
+  const start = new Date()
+  const end = new Date()
+  if (type === 'week') end.setDate(end.getDate() + 6) // 今天起算一週（含今天共 7 天）
+  return [toDateString(start), toDateString(end)]
+}
+
+// 快速選擇：今天／未來一週；選了就同步帶入下方的自訂日期欄位
+// 自訂日期：自己選起訖日，這時快速選擇不再亮起
+const quickRange = ref('week')
+const dateRange = ref(rangeFor('week'))
+
+function onQuickChange(type) {
+  dateRange.value = rangeFor(type)
+  fetchData()
+}
+
+function onCustomChange(value) {
+  quickRange.value = null
+  if (!value) return
+  fetchData()
+}
 
 async function fetchData() {
   if (!dateRange.value || dateRange.value.length !== 2) return
@@ -104,6 +141,23 @@ onMounted(fetchData)
   max-width: 1100px;
   margin: 24px auto;
   padding: 0 16px;
+}
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.filter-label {
+  width: 64px;
+  font-size: 13px;
+  color: var(--ink-text-secondary);
 }
 .header-row {
   display: flex;
