@@ -3,6 +3,8 @@ import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import './assets/styles/theme.css'
+import './assets/styles/mobile.css'
+import { setupMobileTable } from './utils/mobileTable'
 import App from './App.vue'
 import router from './router'
 
@@ -13,3 +15,4 @@ app.use(router)
 app.use(ElementPlus)
 
 app.mount('#app')
+setupMobileTable()

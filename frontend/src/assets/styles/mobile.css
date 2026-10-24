@@ -1,0 +1,135 @@
+/* =========================================================
+   手機版（<= 768px）：表格改卡片、表單直式、彈窗滿版、觸控友善
+   表格欄位名稱由 utils/mobileTable.js 寫入 td 的 data-label
+   ========================================================= */
+@media (max-width: 768px) {
+  /* ---------- 表格 → 卡片 ---------- */
+  .el-table {
+    background: transparent;
+    overflow: visible;
+  }
+  .el-table__inner-wrapper::before {
+    display: none;
+  }
+  .el-table__header-wrapper {
+    display: none;
+  }
+  .el-table__body-wrapper,
+  .el-table__body,
+  .el-table__body tbody {
+    display: block;
+    width: 100% !important;
+  }
+  .el-table colgroup {
+    display: none;
+  }
+  .el-table__body tr {
+    display: block;
+    margin-bottom: 12px;
+    padding: 6px 14px;
+    background: #fff;
+    border: 1px solid var(--paper-dim);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+  }
+  .el-table__body td.el-table__cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--paper-dim);
+    text-align: right;
+  }
+  .el-table__body td.el-table__cell:last-child {
+    border-bottom: none;
+  }
+  .el-table__body td.el-table__cell::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--ink-text-secondary);
+    text-align: left;
+  }
+  /* 沒有欄位名稱的儲存格（通常是操作按鈕）：靠右排列 */
+  .el-table__body td.el-table__cell[data-label=""]::before {
+    display: none;
+  }
+  .el-table__body td.el-table__cell[data-label=""] {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .el-table__body td .cell {
+    padding: 0;
+    width: auto;
+    white-space: normal;
+    word-break: break-all;
+  }
+  .el-table__body tr:hover > td.el-table__cell {
+    background: transparent;
+  }
+  .el-table__empty-block {
+    width: 100% !important;
+    min-height: 80px;
+  }
+
+  /* ---------- 分頁 ---------- */
+  .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 8px;
+  }
+
+  /* ---------- 表單：標籤放在欄位上方 ---------- */
+  .el-form-item {
+    display: block;
+  }
+  .el-form-item__label {
+    display: block;
+    width: auto !important;
+    text-align: left;
+    line-height: 1.6;
+    margin-bottom: 4px;
+  }
+  .el-form-item__content {
+    margin-left: 0 !important;
+  }
+  .el-form-item__content .el-select,
+  .el-form-item__content .el-date-editor,
+  .el-form-item__content .el-input-number {
+    width: 100% !important;
+  }
+
+  /* ---------- 彈窗 ---------- */
+  .el-dialog {
+    --el-dialog-width: 92% !important;
+    width: 92% !important;
+    margin: 4vh auto 0 !important;
+  }
+  .el-message-box {
+    width: 92% !important;
+  }
+
+  /* ---------- 欄位排版：el-col 在手機改為整排／兩欄 ---------- */
+  .el-col-6 {
+    max-width: 50%;
+    flex: 0 0 50%;
+  }
+  .el-col-8,
+  .el-col-12,
+  .el-col-16 {
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
+
+  /* ---------- 觸控友善 ---------- */
+  .el-button {
+    min-height: 36px;
+  }
+  .el-input__inner,
+  .el-textarea__inner {
+    font-size: 16px; /* 避免 iOS 聚焦時自動放大畫面 */
+  }
+}
