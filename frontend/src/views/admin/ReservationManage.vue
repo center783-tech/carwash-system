@@ -4,10 +4,20 @@
   <div class="page-container">
     <div class="header-row">
       <h2>預約管理</h2>
-      <el-date-picker v-model="selectedDate" type="date" placeholder="選擇日期" @change="fetchData" />
+      <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          unlink-panels
+          range-separator="至"
+          start-placeholder="開始日期"
+          end-placeholder="結束日期"
+          value-format="YYYY-MM-DD"
+          @change="fetchData"
+      />
     </div>
 
     <el-table :data="reservations" v-loading="loading">
+      <el-table-column prop="reservationDate" label="日期" width="110" />
       <el-table-column prop="memberName" label="會員" />
       <el-table-column prop="plateNumber" label="車牌" />
       <el-table-column prop="serviceName" label="服務項目" />
@@ -28,6 +38,8 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <el-empty v-if="!loading && reservations.length === 0" description="這個期間沒有預約紀錄" />
   </div>
   </div>
 </template>
@@ -36,20 +48,24 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import AdminNav from '@/components/AdminNav.vue'
-import { listReservationsByDate, confirmReservation, completeReservation } from '@/api/reservation'
+import { listReservationsByDateRange, confirmReservation, completeReservation } from '@/api/reservation'
 
 const reservations = ref([])
 const loading = ref(false)
-const selectedDate = ref(new Date())
 
-function formatDate(date) {
-  return new Date(date).toISOString().slice(0, 10)
+function todayString() {
+  return new Date().toISOString().slice(0, 10)
 }
 
+// 預設查「今天」這一天，使用者可以再自己調整成任意範圍
+const dateRange = ref([todayString(), todayString()])
+
 async function fetchData() {
+  if (!dateRange.value || dateRange.value.length !== 2) return
+  const [startDate, endDate] = dateRange.value
   loading.value = true
   try {
-    reservations.value = await listReservationsByDate(formatDate(selectedDate.value))
+    reservations.value = await listReservationsByDateRange(startDate, endDate)
   } finally {
     loading.value = false
   }

@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -41,6 +42,12 @@ public class ReservationServiceImpl implements ReservationService {
                 .orElseThrow(() -> ResourceNotFoundException.of("Vehicle", vehicleId));
         ServiceItem serviceItem = serviceItemRepository.findById(serviceId)
                 .orElseThrow(() -> ResourceNotFoundException.of("ServiceItem", serviceId));
+
+        // 預約時段必須在「現在的 12 小時後」(或之後)，這條規則本身就涵蓋了「不能預約現在以前的時段」
+        LocalDateTime reservationDateTime = LocalDateTime.of(reservationDate, timeSlotStart);
+        if (reservationDateTime.isBefore(LocalDateTime.now().plusHours(12))) {
+            throw new BusinessException("預約時段須在 12 小時後，請選擇更晚的日期或時段");
+        }
 
         Employee employee = null;
         LocalTime timeSlotEnd = timeSlotStart.plusMinutes(serviceItem.getDurationMinutes());
@@ -94,7 +101,7 @@ public class ReservationServiceImpl implements ReservationService {
 
         if (memberCoupon != null) {
             memberCoupon.setIsUsed(1);
-            memberCoupon.setUsedAt(java.time.LocalDateTime.now());
+            memberCoupon.setUsedAt(LocalDateTime.now());
             memberCouponRepository.save(memberCoupon);
         }
 
@@ -157,5 +164,14 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional(readOnly = true)
     public List<Reservation> listByDate(LocalDate date) {
         return reservationRepository.findByReservationDate(date);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Reservation> listByDateRange(LocalDate startDate, LocalDate endDate) {
+        if (startDate.isAfter(endDate)) {
+            throw new BusinessException("開始日期不能晚於結束日期");
+        }
+        return reservationRepository.findByReservationDateBetween(startDate, endDate);
     }
 }

@@ -33,4 +33,7 @@ public interface ReservationService {
     Page<Reservation> listByMember(Long memberId, Pageable pageable);
 
     List<Reservation> listByDate(LocalDate date);
+
+    /** 依日期範圍查詢（含頭尾兩天） */
+    List<Reservation> listByDateRange(LocalDate startDate, LocalDate endDate);
 }

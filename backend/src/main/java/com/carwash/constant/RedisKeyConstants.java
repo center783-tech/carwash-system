@@ -36,8 +36,28 @@ public final class RedisKeyConstants {
         return LOGIN_FAIL_COUNT_PREFIX + username;
     }
 
+    // ------- 修改密碼的 Email 驗證碼：驗證碼本體、重寄冷卻、驗證錯誤次數 -------
+    public static final String PASSWORD_CODE_PREFIX = APP_PREFIX + "member:pwd-code:";
+    public static final String PASSWORD_CODE_COOLDOWN_PREFIX = APP_PREFIX + "member:pwd-code-cooldown:";
+    public static final String PASSWORD_CODE_FAIL_PREFIX = APP_PREFIX + "member:pwd-code-fail:";
+
+    public static String passwordCodeKey(Long memberId) {
+        return PASSWORD_CODE_PREFIX + memberId;
+    }
+
+    public static String passwordCodeCooldownKey(Long memberId) {
+        return PASSWORD_CODE_COOLDOWN_PREFIX + memberId;
+    }
+
+    public static String passwordCodeFailKey(Long memberId) {
+        return PASSWORD_CODE_FAIL_PREFIX + memberId;
+    }
+
     // ------- 常用 TTL（秒） -------
     public static final long SERVICE_LIST_TTL_SECONDS = 600;       // 10 分鐘
     public static final long EMPLOYEE_SCHEDULE_TTL_SECONDS = 300;  // 5 分鐘
     public static final long LOGIN_FAIL_COUNT_TTL_SECONDS = 900;   // 15 分鐘
+    public static final long PASSWORD_CODE_TTL_SECONDS = 300;      // 驗證碼 5 分鐘有效
+    public static final long PASSWORD_CODE_COOLDOWN_SECONDS = 60;  // 同一會員 60 秒內不可重寄
+    public static final int PASSWORD_CODE_MAX_FAILS = 5;           // 驗證碼錯誤超過次數即作廢
 }

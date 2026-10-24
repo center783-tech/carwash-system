@@ -14,6 +14,11 @@
           {{ row.discountType === 'FIXED' ? `折抵 NT$${row.discountValue}` : `${row.discountValue}% 折扣` }}
         </template>
       </el-table-column>
+      <el-table-column label="最低消費">
+        <template #default="{ row }">
+          {{ row.minAmount > 0 ? `NT$${row.minAmount}` : '無門檻' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="startDate" label="生效日" />
       <el-table-column prop="endDate" label="到期日" />
       <el-table-column label="操作">

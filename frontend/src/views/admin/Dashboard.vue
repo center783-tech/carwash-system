@@ -31,7 +31,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import AdminNav from '@/components/AdminNav.vue'
-import { listReservationsByDate } from '@/api/reservation'
+import { listReservationsByDateRange } from '@/api/reservation'
 import { listServices } from '@/api/service'
 import { listEmployees } from '@/api/employee'
 
@@ -45,7 +45,7 @@ function todayString() {
 
 async function fetchStats() {
   // 三支各自失敗不互相影響，任何一支失敗該卡片維持顯示 '--'
-  listReservationsByDate(todayString())
+  listReservationsByDateRange(todayString(), todayString())
       .then((list) => { todayReservationCount.value = list.length })
       .catch(() => {})
 

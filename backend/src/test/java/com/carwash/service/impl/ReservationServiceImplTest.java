@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Optional;
 
@@ -39,7 +40,8 @@ class ReservationServiceImplTest {
     private Vehicle vehicle;
     private ServiceItem serviceItem;
     private Employee employee;
-    private final LocalDate date = LocalDate.of(2026, 11, 1);
+    // 用相對「現在」的未來日期，確保不管測試什麼時候跑，都遠遠超過 12 小時的預約門檻
+    private final LocalDate date = LocalDate.now().plusDays(2);
     private final LocalTime startTime = LocalTime.of(10, 0);
 
     @BeforeEach
@@ -65,6 +67,18 @@ class ReservationServiceImplTest {
         assertThat(result.getStatus()).isEqualTo(ReservationStatus.PENDING);
         assertThat(result.getEmployee()).isNull();
         assertThat(result.getTimeSlotEnd()).isEqualTo(LocalTime.of(10, 30));
+    }
+
+    @Test
+    void createReservation_lessThan12HoursAhead_throwsBusinessException() {
+        LocalDateTime tooSoon = LocalDateTime.now().plusHours(1);
+
+        assertThatThrownBy(() -> reservationService.createReservation(
+                1L, 1L, 1L, null, tooSoon.toLocalDate(), tooSoon.toLocalTime(), null, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("12 小時");
+
+        verify(reservationRepository, never()).save(any());
     }
 
     @Test

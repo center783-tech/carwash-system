@@ -1,0 +1,236 @@
+name: Test and deploy carwash-system to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: carwash-production-deploy
+  cancel-in-progress: false
+
+env:
+  APP_DIR: /home/ubuntu/carwash
+  JAR_NAME: carwash-system-0.0.1-SNAPSHOT.jar
+
+jobs:
+  test:
+    name: Test backend and build frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: carwash_db
+          MYSQL_ROOT_PASSWORD: ci_test_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci_test_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Build and test backend
+        working-directory: backend
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/carwash_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Taipei
+          DB_USERNAME: root
+          DB_PASSWORD: ci_test_password
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: "6379"
+          REDIS_PASSWORD: ""
+          MINIO_ENDPOINT: http://localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          JWT_SECRET: ci-only-jwt-secret-must-be-at-least-32-characters
+          SERVER_PORT: "8081"
+          GMAIL_USERNAME: ci@example.invalid
+          GMAIL_PASSWORD: ci-only-password
+        run: |
+          chmod +x mvnw
+          ./mvnw --batch-mode --no-transfer-progress clean package
+          test -s "target/${JAR_NAME}"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend (verify it compiles)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload backend JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/target/${{ env.JAR_NAME }}
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    name: Deploy to EC2
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download backend JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: deploy
+
+      - name: Package frontend source
+        run: |
+          tar -czf deploy/frontend.tar.gz \
+            --exclude=node_modules --exclude=dist \
+            -C frontend .
+
+      - name: Configure SSH
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          test -n "$EC2_HOST"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$EC2_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$EC2_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$EC2_HOST" > ~/.ssh/known_hosts
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload files
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          SSH_OPTS="-i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10"
+          ssh $SSH_OPTS "$EC2_USER@$EC2_HOST" \
+            "mkdir -p $APP_DIR/backend/target $APP_DIR/frontend"
+          scp $SSH_OPTS "deploy/${JAR_NAME}" \
+            "$EC2_USER@$EC2_HOST:$APP_DIR/backend/target/${JAR_NAME}.new"
+          scp $SSH_OPTS deploy/frontend.tar.gz \
+            "$EC2_USER@$EC2_HOST:$APP_DIR/frontend.tar.gz"
+
+      - name: Restart services and verify
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=10 \
+            "$EC2_USER@$EC2_HOST" "APP_DIR=$APP_DIR JAR_NAME=$JAR_NAME bash -se" <<'REMOTE_SCRIPT'
+          set -u
+          BACKEND_DIR="$APP_DIR/backend"
+          CURRENT_JAR="$BACKEND_DIR/target/$JAR_NAME"
+          BACKUP_JAR="$CURRENT_JAR.previous"
+          INCOMING_JAR="$CURRENT_JAR.new"
+
+          test -s "$INCOMING_JAR"
+
+          start_backend() {
+            # 在 backend 目錄啟動，application.yml 會讀取該目錄下的 .env
+            cd "$BACKEND_DIR"
+            nohup java -jar "$CURRENT_JAR" > backend.log 2>&1 < /dev/null &
+          }
+
+          stop_backend() {
+            pkill -f "java -jar .*$JAR_NAME" || true
+            for i in $(seq 1 15); do
+              pgrep -f "java -jar .*$JAR_NAME" > /dev/null || return 0
+              sleep 1
+            done
+            pkill -9 -f "java -jar .*$JAR_NAME" || true
+          }
+
+          # ---- Frontend ----
+          tar -xzf "$APP_DIR/frontend.tar.gz" -C "$APP_DIR/frontend"
+          rm -f "$APP_DIR/frontend.tar.gz"
+          cd "$APP_DIR/frontend"
+          npm ci --no-audit --no-fund
+          if pm2 describe carwash-frontend > /dev/null 2>&1; then
+            pm2 restart carwash-frontend
+          else
+            pm2 start npx --name carwash-frontend -- vite --host 0.0.0.0 --port 5174
+          fi
+          pm2 save
+
+          # ---- Backend ----
+          stop_backend
+          if test -f "$CURRENT_JAR"; then
+            cp "$CURRENT_JAR" "$BACKUP_JAR"
+          fi
+          mv "$INCOMING_JAR" "$CURRENT_JAR"
+          start_backend
+
+          # 只要埠有回應 (任何 HTTP 狀態碼) 就視為啟動成功
+          for attempt in $(seq 1 45); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8081/ || true)
+            if [ "$code" != "000" ]; then
+              echo "Deployment succeeded (HTTP $code)."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Health check failed."
+          tail -n 80 "$BACKEND_DIR/backend.log" || true
+
+          if test -f "$BACKUP_JAR"; then
+            echo "Rolling back to the previous JAR."
+            stop_backend
+            mv "$BACKUP_JAR" "$CURRENT_JAR"
+            start_backend
+          else
+            echo "No previous JAR is available for rollback."
+          fi
+          exit 1
+          REMOTE_SCRIPT

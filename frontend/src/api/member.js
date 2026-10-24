@@ -19,8 +19,13 @@ export function updateProfile(id, data) {
   return request.put(`/members/${id}`, data)
 }
 
+export function sendPasswordCode(id) {
+  // 寄 6 位數驗證碼到會員註冊的 Gmail / Email（5 分鐘有效，60 秒內不可重寄）
+  return request.post(`/members/${id}/password/code`)
+}
+
 export function changePassword(id, data) {
-  // data: { oldPassword, newPassword }
+  // data: { oldPassword, newPassword, verificationCode }
   return request.put(`/members/${id}/password`, data)
 }
 

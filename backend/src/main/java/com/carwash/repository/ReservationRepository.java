@@ -16,6 +16,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByReservationDate(LocalDate reservationDate);
 
+    /** 依日期範圍查詢（含頭尾兩天），給後台查詢用 */
+    List<Reservation> findByReservationDateBetween(LocalDate startDate, LocalDate endDate);
+
     List<Reservation> findByEmployeeIdAndReservationDate(Long employeeId, LocalDate reservationDate);
 
     List<Reservation> findByStatus(ReservationStatus status);

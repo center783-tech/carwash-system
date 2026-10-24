@@ -25,6 +25,6 @@ export function listReservationsByMember(memberId, page = 0, size = 10) {
   return request.get(`/reservations/member/${memberId}`, { params: { page, size } })
 }
 
-export function listReservationsByDate(date) {
-  return request.get('/reservations/by-date', { params: { date } })
+export function listReservationsByDateRange(startDate, endDate) {
+  return request.get('/reservations/by-date-range', { params: { startDate, endDate } })
 }

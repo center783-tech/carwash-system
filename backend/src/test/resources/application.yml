@@ -26,6 +26,9 @@ spring:
           max-idle: 8
           min-idle: 2
           max-wait: 1000ms
+  mail:
+    host: localhost
+    port: 25
   servlet:
     multipart:
       max-file-size: 5MB

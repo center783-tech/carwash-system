@@ -17,6 +17,7 @@ public class MemberCouponResponse {
     private String couponCode;
     private DiscountType discountType;
     private BigDecimal discountValue;
+    private BigDecimal minAmount;
     private LocalDate endDate;
     private Integer isUsed;
     private LocalDateTime usedAt;
@@ -28,6 +29,7 @@ public class MemberCouponResponse {
                 mc.getCoupon().getCode(),
                 mc.getCoupon().getDiscountType(),
                 mc.getCoupon().getDiscountValue(),
+                mc.getCoupon().getMinAmount(),
                 mc.getCoupon().getEndDate(),
                 mc.getIsUsed(),
                 mc.getUsedAt(),

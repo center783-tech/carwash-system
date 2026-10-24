@@ -1,8 +1,42 @@
+//本機測試
 cd backend
 ./mvnw spring-boot:run
 
 cd frontend
 npm run dev
 
-cd /mnt/c/Users/USER/Desktop/project/carwash-system/backend
-cd /mnt/c/Users/USER/Desktop/project/carwash-system/frontend
+
+wsl -d Ubuntu
+
+cd Desktop/project/carwash-system/backend
+cd Desktop/project/carwash-system/frontend
+
+
+//上傳ec2
+scp -i "C:/aws/JSB-2609-key10.pem" -r `
+"C:\Users\USER\Desktop\project\carwash-system\backend" `
+ubuntu@43.213.68.133:~/carwash
+
+scp -i "C:/aws/JSB-2609-key10.pem" -r `
+"C:\Users\USER\Desktop\project\carwash-system\frontend\" `
+ubuntu@43.213.68.133:~/carwash/frontend/
+
+//進入ec2 ubuntu
+ssh -i "C:/aws/JSB-2609-key10.pem" ubuntu@43.213.68.133
+
+//ec2啟動
+cd ~/carwash/backend
+nohup java -jar target/carwash-system-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
+
+cd ~/carwash/frontend
+1.nohup npm run dev > frontend.log 2>&1 &
+2.pm2 start npx --name "carwash-frontend" -- vite --host 0.0.0.0 --port 5174
+pm2 startup ,pm2 save
+
+//設定nginx
+sudo nano /etc/nginx/sites-available/gtalent
+sudo nginx -t
+sudo systemctl reload nginx
+
+//檢查運行的port
+sudo ss -tulpn | grep -E "8080|8081|5174"

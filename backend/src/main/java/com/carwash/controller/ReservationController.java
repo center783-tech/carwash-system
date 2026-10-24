@@ -64,10 +64,11 @@ public class ReservationController {
         return ApiResponse.success(result);
     }
 
-    @GetMapping("/by-date")
-    public ApiResponse<List<ReservationResponse>> listByDate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ApiResponse.success(reservationService.listByDate(date).stream()
+    @GetMapping("/by-date-range")
+    public ApiResponse<List<ReservationResponse>> listByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ApiResponse.success(reservationService.listByDateRange(startDate, endDate).stream()
                 .map(ReservationResponse::from).collect(Collectors.toList()));
     }
 }

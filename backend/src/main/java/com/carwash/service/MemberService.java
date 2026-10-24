@@ -14,7 +14,10 @@ public interface MemberService {
 
     Member updateProfile(Long id, Member updates);
 
-    void changePassword(Long id, String oldPassword, String newPassword);
+    /** 寄送修改密碼用的 6 位數驗證碼到會員註冊的 Email */
+    void sendPasswordChangeCode(Long id);
+
+    void changePassword(Long id, String oldPassword, String newPassword, String verificationCode);
 
     List<Member> findAll();
 }

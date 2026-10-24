@@ -5,10 +5,12 @@ import com.carwash.entity.Member;
 import com.carwash.response.ApiResponse;
 import com.carwash.security.JwtTokenProvider;
 import com.carwash.security.UserPrincipal;
+import com.carwash.exception.BusinessException;
 import com.carwash.service.MemberService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "會員", description = "會員註冊、登入、個資維護")
@@ -54,9 +56,26 @@ public class MemberController {
         return ApiResponse.success("更新成功", MemberResponse.from(memberService.updateProfile(id, updates)));
     }
 
+    @PostMapping("/{id}/password/code")
+    public ApiResponse<Void> sendPasswordChangeCode(@PathVariable Long id,
+                                                    @AuthenticationPrincipal UserPrincipal principal) {
+        requireSelf(id, principal);
+        memberService.sendPasswordChangeCode(id);
+        return ApiResponse.success("驗證碼已寄送至您的 Email", null);
+    }
+
     @PutMapping("/{id}/password")
-    public ApiResponse<Void> changePassword(@PathVariable Long id, @Valid @RequestBody ChangePasswordRequest req) {
-        memberService.changePassword(id, req.getOldPassword(), req.getNewPassword());
+    public ApiResponse<Void> changePassword(@PathVariable Long id, @Valid @RequestBody ChangePasswordRequest req,
+                                            @AuthenticationPrincipal UserPrincipal principal) {
+        requireSelf(id, principal);
+        memberService.changePassword(id, req.getOldPassword(), req.getNewPassword(), req.getVerificationCode());
         return ApiResponse.success("密碼修改成功", null);
+    }
+
+    /** 密碼相關操作只允許會員本人，避免登入後帶別人的 id 去改他人密碼 */
+    private void requireSelf(Long id, UserPrincipal principal) {
+        if (principal == null || !"MEMBER".equals(principal.getRole()) || !id.equals(principal.getId())) {
+            throw new BusinessException("只能修改自己的密碼");
+        }
     }
 }

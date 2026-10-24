@@ -11,6 +11,7 @@
           <div class="coupon__body">
             <h3>{{ c.couponCode }}</h3>
             <p>{{ c.discountType === 'FIXED' ? '消費折抵' : '折扣優惠' }} · 有效至 {{ c.endDate }}</p>
+            <p v-if="c.minAmount > 0" class="coupon__threshold">消費滿 NT$ {{ c.minAmount }} 可用</p>
             <el-tag size="small" :type="c.isUsed === 1 ? 'info' : 'warning'">
               {{ c.isUsed === 1 ? '已使用' : '可使用' }}
             </el-tag>
@@ -84,6 +85,9 @@ onMounted(async () => {
   margin: 0 0 8px;
   font-size: 12px;
   color: var(--ink-text-secondary);
+}
+.coupon__threshold {
+  margin-top: -4px;
 }
 .coupon--used {
   opacity: 0.55;
