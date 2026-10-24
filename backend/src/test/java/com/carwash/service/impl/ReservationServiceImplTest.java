@@ -51,9 +51,9 @@ class ReservationServiceImplTest {
         serviceItem = ServiceItem.builder().id(1L).name("精緻洗車").price(new BigDecimal("300")).durationMinutes(30).build();
         employee = Employee.builder().id(1L).name("小明").status(1).build();
 
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
-        when(serviceItemRepository.findById(1L)).thenReturn(Optional.of(serviceItem));
+        lenient().when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        lenient().when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
+        lenient().when(serviceItemRepository.findById(1L)).thenReturn(Optional.of(serviceItem));
     }
 
     @Test
