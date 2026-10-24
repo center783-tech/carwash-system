@@ -23,6 +23,9 @@ public class MemberCouponResponse {
     private LocalDateTime usedAt;
     private LocalDateTime receivedAt;
 
+    /** 僅發放時使用：是否已成功寄出通知信，其他查詢回傳 null */
+    private Boolean emailSent;
+
     public static MemberCouponResponse from(MemberCoupon mc) {
         return new MemberCouponResponse(
                 mc.getId(),
@@ -33,7 +36,8 @@ public class MemberCouponResponse {
                 mc.getCoupon().getEndDate(),
                 mc.getIsUsed(),
                 mc.getUsedAt(),
-                mc.getReceivedAt()
+                mc.getReceivedAt(),
+                null
         );
     }
 }

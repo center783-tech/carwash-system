@@ -85,11 +85,26 @@
               :value="c.id"
               :label="couponLabel(c)"
               :disabled="!meetsThreshold(c)"
-          />
+          >
+            <div class="coupon-option">
+              <div class="coupon-option__main">
+                <strong>{{ c.couponCode }}</strong>
+                <span>{{ c.discountType === 'FIXED' ? `折抵 NT$${c.discountValue}` : `${c.discountValue}% 折扣` }}</span>
+              </div>
+              <div class="coupon-option__sub">
+                <span>{{ c.minAmount > 0 ? `最低消費 NT$${c.minAmount}` : '無最低消費' }}</span>
+                <span>有效至 {{ c.endDate }}</span>
+                <span v-if="!meetsThreshold(c)" class="coupon-option__warn">還差 NT$ {{ shortfall(c) }}</span>
+              </div>
+            </div>
+          </el-option>
         </el-select>
         <p v-if="usableCoupons.length === 0" class="coupon-empty">目前沒有可使用的優惠券</p>
         <p v-else-if="usableCoupons.some((c) => !meetsThreshold(c))" class="coupon-empty">
           灰色選項代表這次的金額還未達該優惠券的最低消費門檻
+        </p>
+        <p v-if="selectedCoupon" class="coupon-threshold-hint">
+          此優惠券最低消費：{{ selectedCoupon.minAmount > 0 ? `NT$ ${selectedCoupon.minAmount}` : '無門檻' }}
         </p>
         <p v-if="selectedCoupon" class="coupon-estimate-hint">
           折扣金額以實際送出結果為準，這裡顯示的是預估金額
@@ -157,6 +172,11 @@ function meetsThreshold(c) {
   const price = selectedService.value?.price
   if (price == null) return true
   return price >= (c.minAmount || 0)
+}
+
+function shortfall(c) {
+  const price = selectedService.value?.price ?? 0
+  return Math.max((c.minAmount || 0) - price, 0)
 }
 
 function couponLabel(c) {
@@ -271,6 +291,34 @@ onMounted(async () => {
   margin: 6px 0 0;
   font-size: 12px;
   color: var(--ink-text-secondary);
+}
+.coupon-threshold-hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--rinse-deep);
+}
+.coupon-option {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.4;
+  padding: 4px 0;
+  height: auto;
+}
+.coupon-option__main {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.coupon-option__sub {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-text-secondary);
+}
+.coupon-option__warn {
+  color: var(--danger);
 }
 .price-original--struck {
   text-decoration: line-through;

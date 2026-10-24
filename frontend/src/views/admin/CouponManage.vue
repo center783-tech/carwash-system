@@ -56,12 +56,18 @@
     <el-dialog v-model="issueDialogVisible" title="發放給會員">
       <el-form label-width="80px">
         <el-form-item label="會員 ID">
-          <el-input-number v-model="issueMemberId" :min="1" style="width: 100%" />
+          <el-input-number v-model="issueMemberId" :min="1" style="width: 100%" @change="lookupMember" />
         </el-form-item>
+        <template v-if="issueMember">
+          <el-form-item label="姓名">{{ issueMember.realName || issueMember.username }}</el-form-item>
+          <el-form-item label="Gmail">{{ issueMember.email }}</el-form-item>
+        </template>
+        <p v-else-if="memberNotFound" class="member-error">找不到這位會員</p>
+        <p v-if="issueMember" class="hint">發放後會寄送通知信到上方信箱</p>
       </el-form>
       <template #footer>
         <el-button @click="issueDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="issuing" @click="handleIssue">發放</el-button>
+        <el-button type="primary" :loading="issuing" :disabled="!issueMember" @click="handleIssue">發放</el-button>
       </template>
     </el-dialog>
   </div>
@@ -73,6 +79,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import AdminNav from '@/components/AdminNav.vue'
 import { listActiveCoupons, createCoupon, issueCouponToMember } from '@/api/coupon'
+import { getMember } from '@/api/member'
 
 const coupons = ref([])
 const loading = ref(false)
@@ -82,6 +89,8 @@ const dialogVisible = ref(false)
 const issueDialogVisible = ref(false)
 const currentCouponId = ref(null)
 const issueMemberId = ref(null)
+const issueMember = ref(null)
+const memberNotFound = ref(false)
 
 const form = reactive({
   code: '', discountType: 'FIXED', discountValue: 0, minAmount: 0, startDate: null, endDate: null
@@ -115,14 +124,35 @@ async function handleCreate() {
 function openIssueDialog(row) {
   currentCouponId.value = row.id
   issueMemberId.value = null
+  issueMember.value = null
+  memberNotFound.value = false
   issueDialogVisible.value = true
+}
+
+// 輸入會員 ID 後帶出姓名與 Gmail，讓管理員確認發給對的人
+let lookupSeq = 0
+async function lookupMember(id) {
+  const seq = ++lookupSeq
+  issueMember.value = null
+  memberNotFound.value = false
+  if (!id) return
+  try {
+    const member = await getMember(id)
+    if (seq === lookupSeq) issueMember.value = member
+  } catch {
+    if (seq === lookupSeq) memberNotFound.value = true
+  }
 }
 
 async function handleIssue() {
   issuing.value = true
   try {
-    await issueCouponToMember(currentCouponId.value, issueMemberId.value)
-    ElMessage.success('發放成功')
+    const result = await issueCouponToMember(currentCouponId.value, issueMemberId.value)
+    if (result.emailSent) {
+      ElMessage.success('發放成功，已寄送通知信到會員信箱')
+    } else {
+      ElMessage.warning('發放成功，但通知信寄送失敗，請另行通知會員')
+    }
     issueDialogVisible.value = false
   } finally {
     issuing.value = false
@@ -142,6 +172,11 @@ onMounted(fetchCoupons)
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.member-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
 }
 .hint {
   display: block;
