@@ -15,7 +15,7 @@ concurrency:
 
 env:
   APP_DIR: /home/ubuntu/carwash
-  JAR_NAME: carwash-system-0.0.1-SNAPSHOT.jar
+  JAR_NAME: app.jar
 
 jobs:
   test:
@@ -79,6 +79,7 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw --batch-mode --no-transfer-progress clean package
+          cp target/carwash-system-0.0.1-SNAPSHOT.jar "target/${JAR_NAME}"
           test -s "target/${JAR_NAME}"
 
       - name: Set up Node.js
@@ -131,7 +132,7 @@ jobs:
         env:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_HOST: ${{ vars.EC2_HOST }}
         run: |
           test -n "$EC2_HOST"
           install -d -m 700 ~/.ssh
@@ -146,8 +147,8 @@ jobs:
 
       - name: Upload files
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ vars.EC2_HOST }}
+          EC2_USER: ${{ vars.EC2_USER }}
         run: |
           SSH_OPTS="-i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10"
           ssh $SSH_OPTS "$EC2_USER@$EC2_HOST" \
@@ -159,8 +160,8 @@ jobs:
 
       - name: Restart services and verify
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ vars.EC2_HOST }}
+          EC2_USER: ${{ vars.EC2_USER }}
         run: |
           ssh \
             -i ~/.ssh/deploy_key \
