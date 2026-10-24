@@ -1,5 +1,5 @@
 <template>
-  <el-config-provider>
+  <el-config-provider :locale="zhTw">
     <NavBar v-if="showNavBar" />
     <router-view />
   </el-config-provider>
@@ -8,6 +8,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import zhTw from 'element-plus/es/locale/lang/zh-tw'
 import NavBar from '@/components/NavBar.vue'
 
 const route = useRoute()

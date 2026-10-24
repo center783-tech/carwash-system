@@ -12,6 +12,18 @@ import java.util.List;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
+    boolean existsByVehicleIdAndStatusIn(Long vehicleId, java.util.Collection<com.carwash.constant.ReservationStatus> statuses);
+
+    /** 某車位區在指定日期內，與 [start, end) 時段重疊的未取消預約數 */
+    @org.springframework.data.jpa.repository.Query("select count(r) from Reservation r "
+            + "where r.zone.id = :zoneId and r.reservationDate = :date "
+            + "and r.status <> com.carwash.constant.ReservationStatus.CANCELLED "
+            + "and r.timeSlotStart < :end and r.timeSlotEnd > :start")
+    long countOverlapping(@org.springframework.data.repository.query.Param("zoneId") Long zoneId,
+                          @org.springframework.data.repository.query.Param("date") LocalDate date,
+                          @org.springframework.data.repository.query.Param("start") LocalTime start,
+                          @org.springframework.data.repository.query.Param("end") LocalTime end);
+
     Page<Reservation> findByMemberId(Long memberId, Pageable pageable);
 
     List<Reservation> findByReservationDate(LocalDate reservationDate);

@@ -7,6 +7,7 @@
       <router-link to="/admin/reservations">預約管理</router-link>
       <router-link to="/admin/services">服務項目</router-link>
       <router-link to="/admin/employees">員工管理</router-link>
+      <router-link to="/admin/zones">車位管理</router-link>
       <router-link to="/admin/coupons">優惠券</router-link>
     </nav>
 

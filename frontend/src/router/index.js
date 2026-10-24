@@ -94,6 +94,12 @@ const routes = [
     name: 'AdminCouponManage',
     component: () => import('@/views/admin/CouponManage.vue'),
     meta: { requiresAuth: true, requiresAdmin: true, hideNavBar: true }
+  },
+  {
+    path: '/admin/zones',
+    name: 'AdminZoneManage',
+    component: () => import('@/views/admin/ZoneManage.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, hideNavBar: true }
   }
 ]
 

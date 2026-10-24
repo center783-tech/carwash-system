@@ -21,6 +21,9 @@ public class CreateReservationRequest {
     /** 可為 null，後台再指派員工 */
     private Long employeeId;
 
+    @NotNull(message = "請選擇車位區")
+    private Long zoneId;
+
     @NotNull
     private LocalDate reservationDate;
 

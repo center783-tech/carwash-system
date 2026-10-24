@@ -44,6 +44,11 @@ public class Vehicle {
     @Column(name = "car_type", length = 20)
     private String carType;
 
+    /** 0 = 正常、1 = 已刪除（軟刪除，保留既有預約紀錄對車輛的參照） */
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer deleted = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

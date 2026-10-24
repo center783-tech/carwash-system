@@ -20,12 +20,15 @@
       <el-table-column prop="reservationDate" label="日期" width="110" />
       <el-table-column prop="memberName" label="會員" />
       <el-table-column prop="plateNumber" label="車牌" />
+      <el-table-column prop="zoneName" label="車位區" />
       <el-table-column prop="serviceName" label="服務項目" />
       <el-table-column prop="employeeName" label="指派員工" />
       <el-table-column prop="timeSlotStart" label="時段" />
       <el-table-column prop="totalAmount" label="金額" />
       <el-table-column label="狀態">
-        <template #default="{ row }"><el-tag>{{ row.status }}</el-tag></template>
+        <template #default="{ row }">
+          <el-tag :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
+        </template>
       </el-table-column>
       <el-table-column label="操作">
         <template #default="{ row }">
@@ -52,6 +55,16 @@ import { listReservationsByDateRange, confirmReservation, completeReservation } 
 
 const reservations = ref([])
 const loading = ref(false)
+
+const statusMap = {
+  PENDING: { text: '待確認', type: 'info' },
+  CONFIRMED: { text: '已確認', type: 'warning' },
+  IN_PROGRESS: { text: '服務中', type: 'warning' },
+  COMPLETED: { text: '已完成', type: 'success' },
+  CANCELLED: { text: '已取消', type: 'danger' }
+}
+const statusText = (s) => statusMap[s]?.text || s
+const statusTagType = (s) => statusMap[s]?.type || 'info'
 
 function todayString() {
   return new Date().toISOString().slice(0, 10)

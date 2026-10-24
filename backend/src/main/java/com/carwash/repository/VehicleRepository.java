@@ -10,5 +10,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     List<Vehicle> findByMemberId(Long memberId);
 
+    List<Vehicle> findByMemberIdAndDeleted(Long memberId, Integer deleted);
+
     Optional<Vehicle> findByPlateNumber(String plateNumber);
 }

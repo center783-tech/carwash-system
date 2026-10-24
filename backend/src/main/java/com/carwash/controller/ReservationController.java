@@ -28,7 +28,7 @@ public class ReservationController {
     @PostMapping
     public ApiResponse<ReservationResponse> create(@Valid @RequestBody CreateReservationRequest req) {
         Reservation reservation = reservationService.createReservation(
-                req.getMemberId(), req.getVehicleId(), req.getServiceId(), req.getEmployeeId(),
+                req.getMemberId(), req.getVehicleId(), req.getServiceId(), req.getEmployeeId(), req.getZoneId(),
                 req.getReservationDate(), req.getTimeSlotStart(), req.getCouponId(), req.getRemark());
         return ApiResponse.success("預約建立成功", ReservationResponse.from(reservation));
     }

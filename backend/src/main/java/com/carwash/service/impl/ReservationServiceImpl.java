@@ -30,9 +30,10 @@ public class ReservationServiceImpl implements ReservationService {
     private final ServiceItemRepository serviceItemRepository;
     private final EmployeeRepository employeeRepository;
     private final MemberCouponRepository memberCouponRepository;
+    private final ParkingZoneRepository parkingZoneRepository;
 
     @Override
-    public Reservation createReservation(Long memberId, Long vehicleId, Long serviceId, Long employeeId,
+    public Reservation createReservation(Long memberId, Long vehicleId, Long serviceId, Long employeeId, Long zoneId,
                                           LocalDate reservationDate, LocalTime timeSlotStart,
                                           Long couponId, String remark) {
 
@@ -64,6 +65,17 @@ public class ReservationServiceImpl implements ReservationService {
             }
         }
 
+        // 車位檢查：先鎖住該區（避免同時搶最後一個車位），再確認啟用中且此時段還有空位
+        ParkingZone zone = parkingZoneRepository.findByIdForUpdate(zoneId)
+                .orElseThrow(() -> ResourceNotFoundException.of("ParkingZone", zoneId));
+        if (zone.getStatus() == null || zone.getStatus() != 1) {
+            throw new BusinessException("此車位區目前未開放預約");
+        }
+        long used = reservationRepository.countOverlapping(zoneId, reservationDate, timeSlotStart, timeSlotEnd);
+        if (used >= zone.getCapacity()) {
+            throw new BusinessException("該區在此時段已無空車位，請改選其他區或時段");
+        }
+
         BigDecimal totalAmount = serviceItem.getPrice();
 
         MemberCoupon memberCoupon = null;
@@ -88,6 +100,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .vehicle(vehicle)
                 .serviceItem(serviceItem)
                 .employee(employee)
+                .zone(zone)
                 .reservationDate(reservationDate)
                 .timeSlotStart(timeSlotStart)
                 .timeSlotEnd(timeSlotEnd)

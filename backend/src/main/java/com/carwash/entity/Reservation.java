@@ -57,6 +57,13 @@ public class Reservation {
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
+    /** 預約的車位區；舊資料沒有車位區所以可為 NULL，新預約一律必填 */
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "zone_id")
+    private ParkingZone zone;
+
     @Column(name = "reservation_date", nullable = false)
     private LocalDate reservationDate;
 

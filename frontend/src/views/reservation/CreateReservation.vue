@@ -32,7 +32,7 @@
           value-format="YYYY-MM-DD"
           style="margin-right: 12px"
           :disabled-date="isDateDisabled"
-          @change="form.timeSlotStart = null"
+          @change="form.timeSlotStart = null; form.zoneId = null"
       />
       <el-time-select
           v-model="form.timeSlotStart"
@@ -40,9 +40,30 @@
           :min-time="minTimeForSelectedDate"
           placeholder="選擇時段"
       />
+      <div v-if="form.reservationDate && form.timeSlotStart" class="zone-picker">
+        <label>選擇車位區</label>
+        <div v-loading="zonesLoading" class="zone-list">
+          <button
+              v-for="z in zones"
+              :key="z.id"
+              type="button"
+              class="zone-card"
+              :class="{ 'zone-card--active': form.zoneId === z.id, 'zone-card--full': z.available === 0 }"
+              :disabled="z.available === 0"
+              @click="form.zoneId = z.id"
+          >
+            <strong>{{ z.name }}</strong>
+            <span>{{ z.available === 0 ? '已額滿' : `剩 ${z.available} 個車位` }}</span>
+          </button>
+        </div>
+        <p v-if="!zonesLoading && zones.length === 0" class="coupon-empty">目前沒有開放預約的車位區</p>
+        <p v-else-if="!zonesLoading && zones.every((z) => z.available === 0)" class="zone-full-hint">
+          此時段所有車位區都已額滿，請改選其他日期或時段
+        </p>
+      </div>
       <div style="margin-top: 16px">
         <el-button @click="activeStep = 0">上一步</el-button>
-        <el-button type="primary" :disabled="!form.reservationDate || !form.timeSlotStart" @click="activeStep = 2">
+        <el-button type="primary" :disabled="!form.reservationDate || !form.timeSlotStart || !form.zoneId" @click="activeStep = 2">
           下一步
         </el-button>
       </div>
@@ -68,6 +89,7 @@
         <el-descriptions-item label="服務項目">{{ selectedService?.name }}</el-descriptions-item>
         <el-descriptions-item label="日期">{{ form.reservationDate }}</el-descriptions-item>
         <el-descriptions-item label="時段">{{ form.timeSlotStart }}</el-descriptions-item>
+        <el-descriptions-item label="車位區">{{ selectedZone?.name }}</el-descriptions-item>
         <el-descriptions-item label="原價">
           <span :class="{ 'price-original--struck': selectedCoupon }">NT$ {{ selectedService?.price }}</span>
         </el-descriptions-item>
@@ -122,13 +144,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { listServices } from '@/api/service'
 import { listVehicles } from '@/api/member'
 import { listMyCoupons } from '@/api/coupon'
 import { createReservation } from '@/api/reservation'
+import { getZoneAvailability } from '@/api/zone'
 import { useAuthStore } from '@/store/auth'
 
 const route = useRoute()
@@ -140,16 +163,20 @@ const services = ref([])
 const vehicles = ref([])
 const myCoupons = ref([])
 const submitting = ref(false)
+const zones = ref([])
+const zonesLoading = ref(false)
 
 const form = reactive({
   serviceId: route.query.serviceId ? Number(route.query.serviceId) : null,
   reservationDate: null,
   timeSlotStart: null,
+  zoneId: null,
   vehicleId: null,
   couponId: null,
   remark: ''
 })
 
+const selectedZone = computed(() => zones.value.find((z) => z.id === form.zoneId))
 const selectedService = computed(() => services.value.find((s) => s.id === form.serviceId))
 const usableCoupons = computed(() => myCoupons.value.filter((c) => c.isUsed === 0))
 const selectedCoupon = computed(() => usableCoupons.value.find((c) => c.id === form.couponId))
@@ -237,6 +264,24 @@ const minTimeForSelectedDate = computed(() => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 })
 
+// 選好服務、日期、時段後，查各車位區此時段的剩餘車位；沒有空位的區不能選
+watch(
+    () => [form.serviceId, form.reservationDate, form.timeSlotStart],
+    async ([serviceId, date, start]) => {
+      zones.value = []
+      if (!serviceId || !date || !start) return
+      zonesLoading.value = true
+      try {
+        zones.value = await getZoneAvailability(date, start, serviceId)
+        if (form.zoneId && !zones.value.some((z) => z.id === form.zoneId && z.available > 0)) {
+          form.zoneId = null
+        }
+      } finally {
+        zonesLoading.value = false
+      }
+    }
+)
+
 async function handleSubmit() {
   submitting.value = true
   try {
@@ -245,6 +290,7 @@ async function handleSubmit() {
       vehicleId: form.vehicleId,
       serviceId: form.serviceId,
       employeeId: null, // 不指定員工，後台再指派
+      zoneId: form.zoneId,
       reservationDate: form.reservationDate, // 已經是 YYYY-MM-DD 字串，直接送出，不用再轉換
       timeSlotStart: form.timeSlotStart,
       couponId: form.couponId,
@@ -318,6 +364,53 @@ onMounted(async () => {
   color: var(--ink-text-secondary);
 }
 .coupon-option__warn {
+  color: var(--danger);
+}
+.zone-picker {
+  margin-top: 16px;
+}
+.zone-picker label {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-text-secondary);
+  margin-bottom: 6px;
+}
+.zone-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 24px;
+}
+.zone-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+  padding: 10px 16px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--paper-dim);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  font: inherit;
+}
+.zone-card span {
+  font-size: 12px;
+  color: var(--ink-text-secondary);
+}
+.zone-card--active {
+  border-color: var(--rinse);
+  background: var(--el-color-primary-light-9);
+}
+.zone-card--full {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.zone-full-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
   color: var(--danger);
 }
 .price-original--struck {

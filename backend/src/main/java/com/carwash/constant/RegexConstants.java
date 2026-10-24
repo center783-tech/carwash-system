@@ -11,8 +11,8 @@ public final class RegexConstants {
     /** 台灣手機號碼：09 開頭共 10 碼 */
     public static final String PHONE_REGEX = "^09\\d{8}$";
 
-    /** 台灣新式車牌：3 碼英數字 + 連字號 + 4 碼數字（例如 ABC-1234），實務上格式變化多，必要時放寬 */
-    public static final String PLATE_NUMBER_REGEX = "^[A-Z0-9]{2,4}-[A-Z0-9]{2,4}$";
+    /** 台灣小客車車牌：新式 ABC-1234，舊式如 AB-1234、1234-AB、ABC-123、123-ABC */
+    public static final String PLATE_NUMBER_REGEX = "^([A-Z]{2,3}-\\d{3,4}|\\d{3,4}-[A-Z]{2,3})$";
 
     /** 密碼規則：至少 8 碼，需同時包含英文字母與數字 */
     public static final String PASSWORD_REGEX = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{8,}$";

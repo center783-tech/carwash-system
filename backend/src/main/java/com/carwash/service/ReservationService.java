@@ -16,9 +16,10 @@ public interface ReservationService {
      * @param vehicleId  車輛 id
      * @param serviceId  服務項目 id
      * @param employeeId 指定員工 id，可為 null（後續由後台指派）
+     * @param zoneId     車位區 id，必填；該區在預約時段內必須還有空車位
      * @param couponId   欲使用的優惠券 id（member_coupons.id），可為 null
      */
-    Reservation createReservation(Long memberId, Long vehicleId, Long serviceId, Long employeeId,
+    Reservation createReservation(Long memberId, Long vehicleId, Long serviceId, Long employeeId, Long zoneId,
                                    LocalDate reservationDate, java.time.LocalTime timeSlotStart,
                                    Long couponId, String remark);
 

@@ -5,6 +5,7 @@
     <el-table :data="reservations" v-loading="loading">
       <el-table-column prop="serviceName" label="服務項目" />
       <el-table-column prop="plateNumber" label="車牌" />
+      <el-table-column prop="zoneName" label="車位區" />
       <el-table-column prop="reservationDate" label="日期" />
       <el-table-column prop="timeSlotStart" label="時段" />
       <el-table-column prop="totalAmount" label="金額" />

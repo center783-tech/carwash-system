@@ -23,6 +23,7 @@ public class ReservationResponse {
     private String serviceName;
     private Long employeeId;
     private String employeeName;
+    private String zoneName;
     private LocalDate reservationDate;
     private LocalTime timeSlotStart;
     private LocalTime timeSlotEnd;
@@ -43,6 +44,7 @@ public class ReservationResponse {
                 r.getServiceItem().getName(),
                 r.getEmployee() != null ? r.getEmployee().getId() : null,
                 r.getEmployee() != null ? r.getEmployee().getName() : null,
+                r.getZone() != null ? r.getZone().getName() : null,
                 r.getReservationDate(),
                 r.getTimeSlotStart(),
                 r.getTimeSlotEnd(),
