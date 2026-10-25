@@ -41,13 +41,24 @@
       <el-table-column prop="totalAmount" label="金額" />
       <el-table-column label="狀態">
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
+          <el-tag :type="rowStatusTagType(row)">{{ rowStatusText(row) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="付款">
+        <template #default="{ row }">
+          <el-tag :type="paymentTagType(row.paymentStatus)">{{ paymentText(row) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作">
         <template #default="{ row }">
           <el-button v-if="row.status === 'PENDING'" link type="primary" @click="handleConfirm(row.id)">
             確認
+          </el-button>
+          <el-button
+              v-if="canCollectCash(row)"
+              link type="warning" @click="handleCollectCash(row)"
+          >
+            現場收款
           </el-button>
           <el-button v-if="row.status === 'CONFIRMED'" link type="success" @click="handleComplete(row.id)">
             標記完成
@@ -63,9 +74,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import AdminNav from '@/components/AdminNav.vue'
 import { listReservationsByDateRange, confirmReservation, completeReservation } from '@/api/reservation'
+import { collectCashPayment } from '@/api/payment'
 
 const reservations = ref([])
 const loading = ref(false)
@@ -79,6 +91,22 @@ const statusMap = {
 }
 const statusText = (s) => statusMap[s]?.text || s
 const statusTagType = (s) => statusMap[s]?.type || 'info'
+// 已確認且已付款的預約，狀態直接顯示「已付款」
+const isPaidConfirmed = (row) => row.status === 'CONFIRMED' && row.paymentStatus === 'PAID'
+const rowStatusText = (row) => (isPaidConfirmed(row) ? '已付款' : statusText(row.status))
+const rowStatusTagType = (row) => (isPaidConfirmed(row) ? 'success' : statusTagType(row.status))
+
+const paymentMethodText = { CREDIT_CARD: '信用卡', ATM: 'ATM 轉帳', CASH: '現金', NEWEBPAY: '藍新' }
+const paymentTagMap = { PAID: 'success', REFUNDED: 'warning', UNPAID: 'info' }
+const paymentTagType = (s) => paymentTagMap[s] || 'info'
+function paymentText(row) {
+  if (row.paymentStatus === 'PAID') {
+    const method = paymentMethodText[row.paymentMethod] || row.paymentMethod
+    return method ? `已付款（${method}）` : '已付款'
+  }
+  if (row.paymentStatus === 'REFUNDED') return '已退款'
+  return row.paymentMethod === 'CASH' ? '未付款（現場付現）' : '未付款'
+}
 
 // 日期一律用「本地時區」組字串；toISOString() 是 UTC，台灣凌晨 0~8 點會變成前一天
 function toDateString(date) {
@@ -120,6 +148,20 @@ async function fetchData() {
   } finally {
     loading.value = false
   }
+}
+
+// 還沒付款、也沒被取消/完成的預約才能現場收款
+const canCollectCash = (row) =>
+  row.paymentStatus !== 'PAID' && ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(row.status)
+
+async function handleCollectCash(row) {
+  await ElMessageBox.confirm(`確認已向會員收取現金 NT$ ${row.totalAmount}？收款後預約會自動確認。`, '現場收款', {
+    confirmButtonText: '已收款',
+    cancelButtonText: '取消'
+  })
+  await collectCashPayment(row.id)
+  ElMessage.success('已收款')
+  fetchData()
 }
 
 async function handleConfirm(id) {

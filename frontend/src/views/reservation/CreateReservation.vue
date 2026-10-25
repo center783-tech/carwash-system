@@ -186,6 +186,16 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">送出預約</el-button>
       </div>
     </div>
+
+    <el-dialog v-model="payDialogVisible" title="選擇付款方式" width="min(420px, 92vw)" :show-close="true" @closed="pickPayMethod(null)">
+      <p class="pay-dialog__hint">預約已建立。線上付款成功後預約會自動確認；選「稍後再付」可之後到「我的預約」付款。</p>
+      <div class="pay-dialog__actions">
+        <el-button type="primary" size="large" @click="pickPayMethod('CREDIT_CARD')">信用卡付款</el-button>
+        <el-button type="primary" size="large" plain @click="pickPayMethod('ATM')">ATM 轉帳</el-button>
+        <el-button size="large" @click="pickPayMethod('CASH')">現場付現</el-button>
+        <el-button size="large" text @click="pickPayMethod(null)">稍後再付</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -197,6 +207,7 @@ import { listServices } from '@/api/service'
 import { listVehicles } from '@/api/member'
 import { listMyCoupons } from '@/api/coupon'
 import { createReservation } from '@/api/reservation'
+import { payByNewebPay, chooseCashPayment } from '@/api/payment'
 import { getZoneAvailability, listClosedDates } from '@/api/zone'
 import { useAuthStore } from '@/store/auth'
 
@@ -360,6 +371,23 @@ watch(
     }
 )
 
+// 付款方式選擇視窗：回傳 CREDIT_CARD / ATM / CASH，或 null（稍後再付）
+const payDialogVisible = ref(false)
+let payResolve = null
+function askPayMethod() {
+  return new Promise((resolve) => {
+    payResolve = resolve
+    payDialogVisible.value = true
+  })
+}
+function pickPayMethod(method) {
+  if (!payResolve) return
+  const resolve = payResolve
+  payResolve = null
+  payDialogVisible.value = false
+  resolve(method)
+}
+
 async function handleSubmit() {
   submitting.value = true
   try {
@@ -375,17 +403,21 @@ async function handleSubmit() {
       remark: form.remark
     })
     ElMessage.success('預約建立成功')
-    // 預約建立後詢問是否立即以信用卡付款；不付款也可以之後在「我的預約」補付
-    const payNow = await ElMessageBox.confirm('預約已建立，是否立即以信用卡付款？', '付款', {
-      confirmButtonText: '信用卡付款',
-      cancelButtonText: '稍後再付'
-    }).then(() => true).catch(() => false)
-    if (payNow) {
+    // 預約建立後詢問付款方式；不付款也可以之後在「我的預約」補付
+    const payMethod = await askPayMethod()
+    if (payMethod === 'CASH') {
       try {
-        await payByNewebPay(reservation.id)
+        await chooseCashPayment(reservation.id)
+        ElMessage.success('已選擇現場付現，請於到場時付款')
+      } catch {
+        // 建立現金付款單失敗不影響預約，到場時店家仍可收款
+      }
+    } else if (payMethod) {
+      try {
+        await payByNewebPay(reservation.id, payMethod)
         return
       } catch {
-        // 付款表單建立失敗：預約已建立，回預約列表可再按「信用卡付款」重試
+        // 付款表單建立失敗：預約已建立，回預約列表可再按付款按鈕重試
       }
     }
     router.push('/reservations')
@@ -404,6 +436,18 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.pay-dialog__hint {
+  margin: 0 0 16px;
+  color: var(--ink-text-secondary);
+}
+.pay-dialog__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pay-dialog__actions .el-button {
+  margin: 0;
+}
 .page-container {
   max-width: 700px;
   margin: 24px auto;

@@ -20,6 +20,12 @@ public class NewebPayProperties {
     /** 交易查詢 API；測試 https://ccore.newebpay.com/API/QueryTradeInfo，正式 https://core.newebpay.com/API/QueryTradeInfo */
     private String queryUrl;
 
+    /** 信用卡取消授權 API（尚未請款時退款用）；測試 https://ccore.newebpay.com/API/CreditCard/Cancel */
+    private String cancelUrl;
+
+    /** 信用卡請款/退款 API（已請款後退款用）；測試 https://ccore.newebpay.com/API/CreditCard/Close */
+    private String closeUrl;
+
     /** 使用者付款完成後瀏覽器被導回的後端網址（必須是藍新可連到的公開網址） */
     private String returnUrl;
 

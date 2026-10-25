@@ -42,6 +42,51 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    public Payment createCashPayment(Long reservationId, Long memberId) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> ResourceNotFoundException.of("Reservation", reservationId));
+        if (!reservation.getMember().getId().equals(memberId)) {
+            throw new BusinessException("無權限操作此預約");
+        }
+        if (reservation.getStatus() != ReservationStatus.PENDING) {
+            throw new BusinessException("此預約目前狀態無法選擇現場付現");
+        }
+        return findOrCreateUnpaidCash(reservation);
+    }
+
+    @Override
+    public Payment collectCash(Long reservationId) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> ResourceNotFoundException.of("Reservation", reservationId));
+        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+            throw new BusinessException("已取消的預約無法收款");
+        }
+        if (reservation.getPayments().stream().anyMatch(p -> p.getPaymentStatus() == PaymentStatus.PAID)) {
+            throw new BusinessException("此預約已完成付款");
+        }
+        Payment payment = findOrCreateUnpaidCash(reservation);
+        payment.setPaymentStatus(PaymentStatus.PAID);
+        payment.setPaidAt(LocalDateTime.now());
+        if (reservation.getStatus() == ReservationStatus.PENDING) {
+            reservation.setStatus(ReservationStatus.CONFIRMED);
+            reservationRepository.save(reservation);
+        }
+        return paymentRepository.save(payment);
+    }
+
+    private Payment findOrCreateUnpaidCash(Reservation reservation) {
+        return reservation.getPayments().stream()
+                .filter(p -> p.getPaymentMethod() == PaymentMethod.CASH && p.getPaymentStatus() == PaymentStatus.UNPAID)
+                .findFirst()
+                .orElseGet(() -> paymentRepository.save(Payment.builder()
+                        .reservation(reservation)
+                        .amount(reservation.getTotalAmount())
+                        .paymentMethod(PaymentMethod.CASH)
+                        .paymentStatus(PaymentStatus.UNPAID)
+                        .build()));
+    }
+
+    @Override
     public Payment markPaid(String transactionNo) {
         Payment payment = paymentRepository.findByTransactionNo(transactionNo)
                 .orElseThrow(() -> new BusinessException("找不到對應的交易紀錄"));

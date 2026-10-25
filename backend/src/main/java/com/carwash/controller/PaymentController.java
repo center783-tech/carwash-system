@@ -58,14 +58,30 @@ public class PaymentController {
     }
 
     /**
-     * 建立藍新信用卡付款單，回傳 MPG 表單欄位。
+     * 建立藍新付款單（method：CREDIT_CARD 信用卡、ATM 轉帳），回傳 MPG 表單欄位。
      * 前端拿到後，建立隱藏表單 POST（MerchantID、TradeInfo、TradeSha、Version）到 gatewayUrl 即可跳轉刷卡頁。
      */
     @PostMapping("/reservations/{reservationId}/newebpay/form")
     public ApiResponse<NewebPayPaymentFormResponse> createNewebPayForm(
             @PathVariable Long reservationId,
+            @RequestParam(defaultValue = "CREDIT_CARD") PaymentMethod method,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ApiResponse.success(newebPayService.createPaymentForm(reservationId, principal.getId()));
+        return ApiResponse.success(newebPayService.createPaymentForm(reservationId, principal.getId(), method));
+    }
+
+    /** 會員選擇「現場付現」：建立現金付款單（未收款），到場後由店家收款 */
+    @PostMapping("/reservations/{reservationId}/cash")
+    public ApiResponse<PaymentResponse> chooseCash(@PathVariable Long reservationId,
+                                                  @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.success("已選擇現場付現",
+                PaymentResponse.from(paymentService.createCashPayment(reservationId, principal.getId())));
+    }
+
+    /** 後台現場收到現金：標記已付款並確認預約，僅限 ADMIN / STAFF（見 SecurityConfig） */
+    @PostMapping("/reservations/{reservationId}/cash/collect")
+    public ApiResponse<PaymentResponse> collectCash(@PathVariable Long reservationId) {
+        return ApiResponse.success("已收款",
+                PaymentResponse.from(paymentService.collectCash(reservationId)));
     }
 
     /** 主動向藍新查詢單筆交易（NotifyURL 沒收到時的備援） */

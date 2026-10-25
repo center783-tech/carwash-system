@@ -15,5 +15,11 @@ public interface PaymentService {
 
     Payment markFailed(String transactionNo);
 
+    /** 會員選擇「現場付現」：建立 CASH 付款單（UNPAID），到場後由店家收款 */
+    Payment createCashPayment(Long reservationId, Long memberId);
+
+    /** 店家現場收到現金：沒有現金付款單就補建，標記已付款，並把待確認的預約改為已確認 */
+    Payment collectCash(Long reservationId);
+
     List<Payment> listByReservation(Long reservationId);
 }

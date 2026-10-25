@@ -34,18 +34,36 @@
       <el-table-column prop="totalAmount" label="金額" />
       <el-table-column label="狀態">
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
+          <el-tag :type="rowStatusTagType(row)">{{ rowStatusText(row) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="付款">
+        <template #default="{ row }">
+          <el-tag :type="paymentTagType(row.paymentStatus)">{{ paymentText(row) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="付款方式">
+        <template #default="{ row }">
+          <el-button v-if="row.status === 'PENDING'" type="primary" link @click="handlePay(row.id, 'CREDIT_CARD')">
+            信用卡付款
+          </el-button>
+          <el-button v-if="row.status === 'PENDING'" type="primary" link @click="handlePay(row.id, 'ATM')">
+            ATM 轉帳
+          </el-button>
+          <el-button
+              v-if="row.status === 'PENDING' && row.paymentMethod !== 'CASH'"
+              type="primary" link @click="handlePay(row.id, 'CASH')"
+          >
+            現場付現
+          </el-button>
         </template>
       </el-table-column>
       <el-table-column label="操作">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'PENDING'" type="primary" link @click="handlePay(row.id)">
-            信用卡付款
-          </el-button>
           <el-button
               v-if="row.status === 'PENDING' || row.status === 'CONFIRMED'"
               type="danger" link
-              @click="handleCancel(row.id)"
+              @click="handleCancel(row)"
           >
             取消預約
           </el-button>
@@ -63,7 +81,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listReservationsByMember, cancelReservation } from '@/api/reservation'
-import { payByNewebPay, queryPendingNewebPayTrades } from '@/api/payment'
+import { payByNewebPay, queryPendingNewebPayTrades, chooseCashPayment } from '@/api/payment'
 import { useAuthStore } from '@/store/auth'
 
 const router = useRouter()
@@ -99,6 +117,22 @@ const statusMap = {
 }
 const statusText = (s) => statusMap[s]?.text || s
 const statusTagType = (s) => statusMap[s]?.type || 'info'
+// 已確認且已付款的預約，狀態直接顯示「已付款」
+const isPaidConfirmed = (row) => row.status === 'CONFIRMED' && row.paymentStatus === 'PAID'
+const rowStatusText = (row) => (isPaidConfirmed(row) ? '已付款' : statusText(row.status))
+const rowStatusTagType = (row) => (isPaidConfirmed(row) ? 'success' : statusTagType(row.status))
+
+const paymentMethodText = { CREDIT_CARD: '信用卡', ATM: 'ATM 轉帳', CASH: '現金', NEWEBPAY: '藍新' }
+const paymentTagMap = { PAID: 'success', REFUNDED: 'warning', UNPAID: 'info' }
+const paymentTagType = (s) => paymentTagMap[s] || 'info'
+function paymentText(row) {
+  if (row.paymentStatus === 'PAID') {
+    const method = paymentMethodText[row.paymentMethod] || row.paymentMethod
+    return method ? `已付款（${method}）` : '已付款'
+  }
+  if (row.paymentStatus === 'REFUNDED') return '已退款'
+  return row.paymentMethod === 'CASH' ? '未付款（現場付現）' : '未付款'
+}
 
 async function fetchData() {
   const statuses = filters.filter((f) => selectedFilters.value.includes(f.key)).flatMap((f) => f.statuses)
@@ -125,15 +159,26 @@ function goPage(p) {
   fetchData()
 }
 
-async function handleCancel(id) {
-  await ElMessageBox.confirm('確定要取消這筆預約嗎？', '取消預約', { type: 'warning' })
-  await cancelReservation(id)
-  ElMessage.success('已取消預約')
+async function handleCancel(row) {
+  const paidByCard = row.paymentStatus === 'PAID' && row.paymentMethod === 'CREDIT_CARD'
+  const paidOther = row.paymentStatus === 'PAID' && !paidByCard
+  let message = '確定要取消這筆預約嗎？'
+  if (paidByCard) message = '確定要取消這筆預約嗎？取消後會自動退款至原信用卡。'
+  if (paidOther) message = '確定要取消這筆預約嗎？此筆款項無法線上退款，請聯絡店家處理退款。'
+  await ElMessageBox.confirm(message, '取消預約', { type: 'warning' })
+  await cancelReservation(row.id)
+  ElMessage.success(paidByCard ? '已取消預約，款項將退回原信用卡' : '已取消預約')
   fetchData()
 }
 
-async function handlePay(id) {
-  await payByNewebPay(id)
+async function handlePay(id, method) {
+  if (method === 'CASH') {
+    await chooseCashPayment(id)
+    ElMessage.success('已選擇現場付現，請於到場時付款')
+    fetchData()
+    return
+  }
+  await payByNewebPay(id, method)
 }
 
 onMounted(async () => {

@@ -16,8 +16,8 @@ npm run dev
 
 //上傳ec2
 scp -i "C:/aws/JSB-2609-key10.pem" -r `
-"C:\Users\USER\Desktop\project\carwash-system\backend" `
-ubuntu@43.213.68.133:~/carwash
+"C:\Users\USER\Desktop\project\carwash-system\backend\.env" `
+ubuntu@43.213.68.133:~/carwash/backend
 
 scp -i "C:/aws/JSB-2609-key10.pem" -r `
 "C:\Users\USER\Desktop\project\carwash-system\frontend\" `

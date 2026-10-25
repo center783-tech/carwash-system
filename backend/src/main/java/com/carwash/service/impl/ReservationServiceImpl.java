@@ -1,11 +1,15 @@
 package com.carwash.service.impl;
 
 import com.carwash.constant.DiscountType;
+import com.carwash.constant.PaymentMethod;
+import com.carwash.constant.PaymentProviders;
+import com.carwash.constant.PaymentStatus;
 import com.carwash.constant.ReservationStatus;
 import com.carwash.entity.*;
 import com.carwash.exception.BusinessException;
 import com.carwash.exception.ResourceNotFoundException;
 import com.carwash.repository.*;
+import com.carwash.service.NewebPayService;
 import com.carwash.service.ReservationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -32,6 +36,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final MemberCouponRepository memberCouponRepository;
     private final ParkingZoneRepository parkingZoneRepository;
     private final ClosedDateRepository closedDateRepository;
+    private final NewebPayService newebPayService;
 
     @Override
     public Reservation createReservation(Long memberId, Long vehicleId, Long serviceId, Long employeeId, Long zoneId,
@@ -162,8 +167,27 @@ public class ReservationServiceImpl implements ReservationService {
         if (reservation.getStatus() == ReservationStatus.COMPLETED) {
             throw new BusinessException("已完成的預約無法取消");
         }
+        refundOrVoidPayments(reservation);
         reservation.setStatus(ReservationStatus.CANCELLED);
         return reservationRepository.save(reservation);
+    }
+
+    /**
+     * 取消預約時處理付款單：
+     * 信用卡已付款 → 線上退款（失敗會丟例外，預約不會被取消）；
+     * 未付款的線上付款單 → 作廢；現場現金／ATM 已付款 → 無法線上退款，保留 PAID 由店家手動處理。
+     */
+    private void refundOrVoidPayments(Reservation reservation) {
+        for (Payment payment : reservation.getPayments()) {
+            if (payment.getPaymentStatus() == PaymentStatus.PAID
+                    && payment.getPaymentMethod() == PaymentMethod.CREDIT_CARD
+                    && PaymentProviders.NEWEBPAY.equals(payment.getProvider())) {
+                newebPayService.refundCreditCard(payment);
+                payment.setPaymentStatus(PaymentStatus.REFUNDED);
+            } else if (payment.getPaymentStatus() == PaymentStatus.UNPAID) {
+                payment.setPaymentStatus(PaymentStatus.FAILED);
+            }
+        }
     }
 
     @Override

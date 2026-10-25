@@ -100,5 +100,7 @@ newebpay:
   hash-iv: ${NEWEBPAY_HASH_IV:}
   gateway-url: ${NEWEBPAY_GATEWAY_URL:https://ccore.newebpay.com/MPG/mpg_gateway}
   query-url: ${NEWEBPAY_QUERY_URL:https://ccore.newebpay.com/API/QueryTradeInfo}
+  cancel-url: ${NEWEBPAY_CANCEL_URL:https://ccore.newebpay.com/API/CreditCard/Cancel}
+  close-url: ${NEWEBPAY_CLOSE_URL:https://ccore.newebpay.com/API/CreditCard/Close}
   return-url: ${NEWEBPAY_RETURN_URL:http://localhost:8081/api/payments/newebpay/return}
   notify-url: ${NEWEBPAY_NOTIFY_URL:http://localhost:8081/api/payments/newebpay/notify}

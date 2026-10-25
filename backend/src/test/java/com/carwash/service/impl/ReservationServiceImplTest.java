@@ -3,6 +3,7 @@ package com.carwash.service.impl;
 import com.carwash.constant.DiscountType;
 import com.carwash.constant.ReservationStatus;
 import com.carwash.entity.*;
+import com.carwash.service.NewebPayService;
 import com.carwash.exception.BusinessException;
 import com.carwash.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,7 @@ class ReservationServiceImplTest {
     @Mock private MemberCouponRepository memberCouponRepository;
     @Mock private ParkingZoneRepository parkingZoneRepository;
     @Mock private ClosedDateRepository closedDateRepository;
+    @Mock private NewebPayService newebPayService;
 
     @InjectMocks
     private ReservationServiceImpl reservationService;
@@ -233,5 +235,46 @@ class ReservationServiceImplTest {
         Reservation result = reservationService.cancel(1L);
 
         assertThat(result.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
+    }
+
+    private Reservation reservationWithPaidCard() {
+        Reservation reservation = Reservation.builder()
+                .id(1L).status(ReservationStatus.CONFIRMED).build();
+        Payment payment = Payment.builder()
+                .reservation(reservation)
+                .amount(new BigDecimal("500"))
+                .paymentMethod(com.carwash.constant.PaymentMethod.CREDIT_CARD)
+                .paymentStatus(com.carwash.constant.PaymentStatus.PAID)
+                .provider(com.carwash.constant.PaymentProviders.NEWEBPAY)
+                .merchantOrderNo("CW1")
+                .build();
+        reservation.getPayments().add(payment);
+        return reservation;
+    }
+
+    @Test
+    void cancel_paidCreditCard_refundsOnline() {
+        Reservation reservation = reservationWithPaidCard();
+        when(reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Reservation result = reservationService.cancel(1L);
+
+        verify(newebPayService).refundCreditCard(reservation.getPayments().get(0));
+        assertThat(result.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
+        assertThat(reservation.getPayments().get(0).getPaymentStatus())
+                .isEqualTo(com.carwash.constant.PaymentStatus.REFUNDED);
+    }
+
+    @Test
+    void cancel_refundFails_reservationStaysUncancelled() {
+        Reservation reservation = reservationWithPaidCard();
+        when(reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
+        doThrow(new BusinessException("信用卡退款失敗")).when(newebPayService).refundCreditCard(any());
+
+        assertThatThrownBy(() -> reservationService.cancel(1L)).isInstanceOf(BusinessException.class);
+
+        assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+        verify(reservationRepository, never()).save(any(Reservation.class));
     }
 }

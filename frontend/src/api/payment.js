@@ -9,8 +9,8 @@ export function listPaymentsByReservation(reservationId) {
 }
 
 /** 建立藍新信用卡付款單，回傳 MPG 表單欄位 { gatewayUrl, merchantId, version, tradeInfo, tradeSha } */
-export function createNewebPayForm(reservationId) {
-  return request.post(`/payments/reservations/${reservationId}/newebpay/form`)
+export function createNewebPayForm(reservationId, method = 'CREDIT_CARD') {
+  return request.post(`/payments/reservations/${reservationId}/newebpay/form`, null, { params: { method } })
 }
 
 /** 補查會員逾時未付款的藍新交易（沒收到 NotifyURL 時的備援） */
@@ -19,8 +19,9 @@ export function queryPendingNewebPayTrades() {
 }
 
 /** 建立並送出隱藏表單，整頁跳轉到藍新刷卡頁 */
-export async function payByNewebPay(reservationId) {
-  const f = await createNewebPayForm(reservationId)
+/** method：CREDIT_CARD 信用卡 / ATM ATM 轉帳 */
+export async function payByNewebPay(reservationId, method = 'CREDIT_CARD') {
+  const f = await createNewebPayForm(reservationId, method)
   const form = document.createElement('form')
   form.method = 'POST'
   form.action = f.gatewayUrl
@@ -34,4 +35,14 @@ export async function payByNewebPay(reservationId) {
   })
   document.body.appendChild(form)
   form.submit()
+}
+
+/** 會員選擇現場付現：建立現金付款單（未收款） */
+export function chooseCashPayment(reservationId) {
+  return request.post(`/payments/reservations/${reservationId}/cash`)
+}
+
+/** 後台現場收到現金：標記已付款並確認預約 */
+export function collectCashPayment(reservationId) {
+  return request.post(`/payments/reservations/${reservationId}/cash/collect`)
 }

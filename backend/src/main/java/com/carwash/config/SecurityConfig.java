@@ -61,6 +61,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
                         // 手動標記付款成功/失敗只有後台能用，避免會員自己把付款單改成已付款
                         .requestMatchers("/api/payments/callback/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.POST, "/api/payments/reservations/*/cash/collect").hasAnyRole("ADMIN", "STAFF")
                         // 後台管理相關端點僅限 ADMIN / STAFF
                         .requestMatchers("/api/admin/**", "/api/employees/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/services/**").hasAnyRole("ADMIN", "STAFF")

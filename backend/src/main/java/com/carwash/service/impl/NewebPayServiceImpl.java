@@ -38,6 +38,7 @@ import java.math.RoundingMode;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -63,7 +64,9 @@ public class NewebPayServiceImpl implements NewebPayService {
     /** 付款單超過這麼多分鐘還沒收到通知，才算「逾時未付款」去補查 */
     private static final int STALE_AFTER_MINUTES = 5;
     /** 補查只看最近幾天內建立的付款單 */
-    private static final int STALE_LOOKBACK_DAYS = 2;
+    private static final int STALE_LOOKBACK_DAYS = 5;
+    /** ATM 虛擬帳號的繳費期限（天） */
+    private static final int ATM_EXPIRE_DAYS = 3;
 
     private final NewebPayProperties props;
     private final PaymentRepository paymentRepository;
@@ -78,7 +81,10 @@ public class NewebPayServiceImpl implements NewebPayService {
 
     @Override
     @Transactional
-    public NewebPayPaymentFormResponse createPaymentForm(Long reservationId, Long memberId) {
+    public NewebPayPaymentFormResponse createPaymentForm(Long reservationId, Long memberId, PaymentMethod method) {
+        if (method != PaymentMethod.CREDIT_CARD && method != PaymentMethod.ATM) {
+            throw new BusinessException("不支援的付款方式");
+        }
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> ResourceNotFoundException.of("Reservation", reservationId));
         if (!reservation.getMember().getId().equals(memberId)) {
@@ -101,7 +107,7 @@ public class NewebPayServiceImpl implements NewebPayService {
         Payment payment = paymentRepository.save(Payment.builder()
                 .reservation(reservation)
                 .amount(reservation.getTotalAmount())
-                .paymentMethod(PaymentMethod.CREDIT_CARD)
+                .paymentMethod(method)
                 .paymentStatus(PaymentStatus.UNPAID)
                 .provider(PaymentProviders.NEWEBPAY)
                 .merchantOrderNo(generateMerchantOrderNo())
@@ -118,7 +124,13 @@ public class NewebPayServiceImpl implements NewebPayService {
         params.put("ReturnURL", props.getReturnUrl());
         params.put("NotifyURL", props.getNotifyUrl());
         params.put("LoginType", "0");
-        params.put("CREDIT", "1");
+        if (method == PaymentMethod.ATM) {
+            params.put("VACC", "1");
+            // ATM 虛擬帳號繳費期限；超過就無法繳費（藍新預設 7 天，這裡縮短）
+            params.put("ExpireDate", LocalDate.now().plusDays(ATM_EXPIRE_DAYS).format(DateTimeFormatter.BASIC_ISO_DATE));
+        } else {
+            params.put("CREDIT", "1");
+        }
         String email = reservation.getMember().getEmail();
         if (email != null && !email.isBlank()) {
             params.put("Email", email);
@@ -303,6 +315,58 @@ public class NewebPayServiceImpl implements NewebPayService {
                 + "&TradeNo=" + result.path("TradeNo").asText()
                 + "&HashKey=" + props.getHashKey());
         return expected.equalsIgnoreCase(checkCode);
+    }
+
+    // ------------------------------------------------------------------ 退款
+
+    @Override
+    public void refundCreditCard(Payment payment) {
+        int amount = toIntAmount(payment.getAmount());
+        String orderNo = payment.getMerchantOrderNo();
+        // 尚未請款：取消授權；已請款：請款後退款（CloseType=2）。哪一種要看當時的請款狀態，所以依序嘗試
+        String cancelError = callCardApi(props.getCancelUrl(), "1.0", amount, orderNo, null);
+        if (cancelError == null) {
+            return;
+        }
+        String closeError = callCardApi(props.getCloseUrl(), "1.1", amount, orderNo, "2");
+        if (closeError == null) {
+            return;
+        }
+        log.warn("藍新退款失敗 orderNo={} cancel={} close={}", orderNo, cancelError, closeError);
+        throw new BusinessException("信用卡退款失敗，請聯絡店家處理：" + closeError);
+    }
+
+    /** 呼叫藍新信用卡取消/退款 API；成功回 null，失敗回藍新的錯誤訊息 */
+    private String callCardApi(String url, String version, int amount, String orderNo, String closeType) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("RespondType", "JSON");
+        params.put("Version", version);
+        params.put("Amt", String.valueOf(amount));
+        params.put("MerchantOrderNo", orderNo);
+        params.put("TimeStamp", String.valueOf(System.currentTimeMillis() / 1000));
+        params.put("IndexType", "1"); // 1：以 MerchantOrderNo 指定交易
+        if (closeType != null) {
+            params.put("CloseType", closeType);
+        }
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("MerchantID_", props.getMerchantId());
+        body.add("PostData_", encrypt(toQueryString(params)));
+        try {
+            String json = restClient.post()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(body)
+                    .retrieve()
+                    .body(String.class);
+            JsonNode root = objectMapper.readTree(json);
+            if ("SUCCESS".equals(root.path("Status").asText())) {
+                return null;
+            }
+            return root.path("Message").asText("藍新回應異常");
+        } catch (Exception e) {
+            return "無法連線藍新：" + e.getMessage();
+        }
     }
 
     // ------------------------------------------------------------------ 共用
