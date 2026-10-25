@@ -1,6 +1,9 @@
 <template>
   <div class="page-container">
-    <h2>我的優惠券</h2>
+    <div class="header-row">
+      <h2>我的優惠券</h2>
+      <router-link to="/reservations/create"><el-button type="primary">現在預約</el-button></router-link>
+    </div>
 
     <el-row :gutter="16" v-loading="loading">
       <el-col :span="8" v-for="c in coupons" :key="c.id" style="margin-bottom: 16px">
@@ -175,6 +178,12 @@ onBeforeUnmount(() => clearInterval(ticker))
   max-width: 1000px;
   margin: 24px auto;
   padding: 0 16px;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 .coupon {
   display: flex;

@@ -4,6 +4,7 @@ import com.carwash.entity.Employee;
 import com.carwash.entity.ServiceItem;
 import com.carwash.exception.ResourceNotFoundException;
 import com.carwash.repository.EmployeeRepository;
+import com.carwash.repository.EmployeeScheduleRepository;
 import com.carwash.repository.ServiceItemRepository;
 import com.carwash.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +22,30 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final ServiceItemRepository serviceItemRepository;
+    private final EmployeeScheduleRepository scheduleRepository;
 
     @Override
     public Employee create(Employee employee) {
         employee.setStatus(1);
+        return employeeRepository.save(employee);
+    }
+
+    @Override
+    public Employee update(Long id, String name, String phone) {
+        Employee employee = getById(id);
+        employee.setName(name.trim());
+        employee.setPhone(phone == null || phone.isBlank() ? null : phone.trim());
+        return employeeRepository.save(employee);
+    }
+
+    @Override
+    public Employee updateStatus(Long id, Integer status) {
+        Employee employee = getById(id);
+        employee.setStatus(status);
+        // 停用 = 離職或暫停，已排的班全部刪除（重新啟用不會恢復，需重新排班）
+        if (status == 0) {
+            scheduleRepository.deleteByEmployeeId(id);
+        }
         return employeeRepository.save(employee);
     }
 

@@ -24,6 +24,16 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
                           @org.springframework.data.repository.query.Param("start") LocalTime start,
                           @org.springframework.data.repository.query.Param("end") LocalTime end);
 
+    /** 同一台車在指定日期內，與 [start, end) 時段重疊的未取消預約數 */
+    @org.springframework.data.jpa.repository.Query("select count(r) from Reservation r "
+            + "where r.vehicle.id = :vehicleId and r.reservationDate = :date "
+            + "and r.status <> com.carwash.constant.ReservationStatus.CANCELLED "
+            + "and r.timeSlotStart < :end and r.timeSlotEnd > :start")
+    long countVehicleOverlapping(@org.springframework.data.repository.query.Param("vehicleId") Long vehicleId,
+                                 @org.springframework.data.repository.query.Param("date") LocalDate date,
+                                 @org.springframework.data.repository.query.Param("start") LocalTime start,
+                                 @org.springframework.data.repository.query.Param("end") LocalTime end);
+
     Page<Reservation> findByMemberId(Long memberId, Pageable pageable);
 
     Page<Reservation> findByMemberIdAndStatusIn(Long memberId, java.util.Collection<ReservationStatus> statuses, Pageable pageable);

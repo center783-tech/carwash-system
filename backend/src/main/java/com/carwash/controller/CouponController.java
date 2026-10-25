@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +31,10 @@ public class CouponController {
 
     private final CouponService couponService;
     private final MailService mailService;
+
+    /** 前端網址，通知信裡的連結用；正式環境請設定 APP_BASE_URL */
+    @Value("${app.base-url:http://localhost:5174/carwash}")
+    private String appBaseUrl;
 
     @PostMapping
     public ApiResponse<CouponResponse> create(@Valid @RequestBody CouponRequest req) {
@@ -92,7 +97,9 @@ public class CouponController {
                             + "優惠內容：" + discount + "\n"
                             + "使用門檻：" + threshold + "\n"
                             + "有效期限：" + coupon.getEndDate() + "\n\n"
-                            + "登入後在「我的優惠券」即可查看，預約時選擇使用。");
+                            + "登入後在「我的優惠券」即可查看，預約時選擇使用，也可以到店出示。\n\n"
+                            + "查看並使用優惠券：" + couponUrl() + "\n"
+                            + "立即預約：" + baseUrl() + "/reservations/create");
             return true;
         } catch (MailException e) {
             log.warn("Coupon notification mail failed. memberId={}, couponId={}", member.getId(), coupon.getId(), e);
@@ -104,6 +111,14 @@ public class CouponController {
     @PostMapping("/member-coupons/{memberCouponId}/redeem")
     public ApiResponse<MemberCouponResponse> redeem(@PathVariable Long memberCouponId, @RequestParam Long memberId) {
         return ApiResponse.success(MemberCouponResponse.from(couponService.startRedeem(memberCouponId, memberId)));
+    }
+
+    private String baseUrl() {
+        return appBaseUrl.endsWith("/") ? appBaseUrl.substring(0, appBaseUrl.length() - 1) : appBaseUrl;
+    }
+
+    private String couponUrl() {
+        return baseUrl() + "/coupons";
     }
 
     @GetMapping("/member/{memberId}")

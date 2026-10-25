@@ -64,6 +64,10 @@ spring:
 
     default-encoding: UTF-8
 
+# 前端網址：優惠券通知信裡的連結會用到，正式環境請設定環境變數 APP_BASE_URL
+app:
+  base-url: ${APP_BASE_URL:http://localhost:5174/carwash}
+
 server:
   port: ${SERVER_PORT}
 

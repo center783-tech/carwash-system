@@ -1,5 +1,6 @@
 package com.carwash.controller;
 
+import com.carwash.controller.dto.EmployeeScheduleBatchRequest;
 import com.carwash.controller.dto.EmployeeScheduleRequest;
 import com.carwash.controller.dto.EmployeeScheduleResponse;
 import com.carwash.entity.EmployeeSchedule;
@@ -47,6 +48,28 @@ public class EmployeeScheduleController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ApiResponse.success(scheduleService.listByEmployeeAndDate(employeeId, date).stream()
                 .map(EmployeeScheduleResponse::from).collect(Collectors.toList()));
+    }
+
+    /** 一次排多天 */
+    @PostMapping("/batch")
+    public ApiResponse<List<EmployeeScheduleResponse>> createBatch(@PathVariable Long employeeId,
+                                                                    @Valid @RequestBody EmployeeScheduleBatchRequest req) {
+        List<EmployeeScheduleResponse> created = scheduleService
+                .createBatch(employeeId, req.getWorkDates(), req.getStartTime(), req.getEndTime()).stream()
+                .map(EmployeeScheduleResponse::from).collect(Collectors.toList());
+        return ApiResponse.success("已新增 " + created.size() + " 筆排班", created);
+    }
+
+    @PutMapping("/{scheduleId}/leave/cancel")
+    public ApiResponse<Void> cancelLeave(@PathVariable Long employeeId, @PathVariable Long scheduleId) {
+        scheduleService.cancelLeave(scheduleId);
+        return ApiResponse.success("已取消請假", null);
+    }
+
+    @DeleteMapping("/{scheduleId}")
+    public ApiResponse<Void> delete(@PathVariable Long employeeId, @PathVariable Long scheduleId) {
+        scheduleService.delete(scheduleId);
+        return ApiResponse.success("排班已刪除", null);
     }
 
     @PutMapping("/{scheduleId}/leave")

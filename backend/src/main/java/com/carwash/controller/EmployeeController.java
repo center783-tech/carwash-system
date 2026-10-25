@@ -3,6 +3,7 @@ package com.carwash.controller;
 import com.carwash.controller.dto.AssignServicesRequest;
 import com.carwash.controller.dto.EmployeeRequest;
 import com.carwash.controller.dto.EmployeeResponse;
+import com.carwash.controller.dto.EmployeeStatusRequest;
 import com.carwash.entity.Employee;
 import com.carwash.response.ApiResponse;
 import com.carwash.service.EmployeeService;
@@ -32,6 +33,19 @@ public class EmployeeController {
     public ApiResponse<List<EmployeeResponse>> list() {
         return ApiResponse.success(employeeService.findAll().stream()
                 .map(EmployeeResponse::from).collect(Collectors.toList()));
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<EmployeeResponse> update(@PathVariable Long id, @Valid @RequestBody EmployeeRequest req) {
+        return ApiResponse.success("員工資料已更新",
+                EmployeeResponse.from(employeeService.update(id, req.getName(), req.getPhone())));
+    }
+
+    @PutMapping("/{id}/status")
+    public ApiResponse<EmployeeResponse> updateStatus(@PathVariable Long id,
+                                                        @Valid @RequestBody EmployeeStatusRequest req) {
+        return ApiResponse.success(req.getStatus() == 1 ? "員工已啟用" : "員工已停用",
+                EmployeeResponse.from(employeeService.updateStatus(id, req.getStatus())));
     }
 
     @GetMapping("/{id}")

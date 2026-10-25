@@ -88,6 +88,19 @@ class ReservationServiceImplTest {
     }
 
     @Test
+    void createReservation_vehicleAlreadyBooked_throwsBusinessException() {
+        when(reservationRepository.countVehicleOverlapping(eq(1L), eq(date), eq(startTime), any(LocalTime.class)))
+                .thenReturn(1L);
+
+        assertThatThrownBy(() -> reservationService.createReservation(
+                1L, 1L, 1L, null, 1L, date, startTime, null, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("這台車");
+
+        verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
     void createReservation_closedDate_throwsBusinessException() {
         when(closedDateRepository.existsByClosedDate(date)).thenReturn(true);
 

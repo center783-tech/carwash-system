@@ -58,6 +58,11 @@ public class ReservationServiceImpl implements ReservationService {
         Employee employee = null;
         LocalTime timeSlotEnd = timeSlotStart.plusMinutes(serviceItem.getDurationMinutes());
 
+        // 同一台車不能在重疊的時段重複預約（已取消的不算）
+        if (reservationRepository.countVehicleOverlapping(vehicleId, reservationDate, timeSlotStart, timeSlotEnd) > 0) {
+            throw new BusinessException("這台車在此時段已有預約，請改選其他時段或車輛");
+        }
+
         if (employeeId != null) {
             employee = employeeRepository.findById(employeeId)
                     .orElseThrow(() -> ResourceNotFoundException.of("Employee", employeeId));

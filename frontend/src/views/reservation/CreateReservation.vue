@@ -14,9 +14,9 @@
       <el-select v-model="form.serviceId" placeholder="請選擇服務項目" style="width: 100%" @change="onServiceSelected">
         <el-option v-for="s in services" :key="s.id" :label="`${s.name}（NT$${s.price}）`" :value="s.id" />
       </el-select>
-      <el-button type="primary" style="margin-top: 16px" :disabled="!form.serviceId" @click="activeStep = 1">
-        下一步
-      </el-button>
+      <div class="step-actions">
+        <el-button type="primary" :disabled="!form.serviceId" @click="activeStep = 1">下一步</el-button>
+      </div>
     </div>
 
     <!-- Step 2: 選日期時段 -->
@@ -107,7 +107,7 @@
           此時段所有車位區都已額滿，請改選其他日期或時段
         </p>
       </div>
-      <div style="margin-top: 16px">
+      <div class="step-actions">
         <el-button @click="activeStep = 0">上一步</el-button>
         <el-button type="primary" :disabled="!form.reservationDate || !form.timeSlotStart || !form.zoneId" @click="activeStep = 2">
           下一步
@@ -123,7 +123,7 @@
       <el-empty v-if="vehicles.length === 0" description="尚未新增車輛，請先到「我的車輛」新增">
         <el-button type="primary" @click="router.push('/vehicles')">前往新增</el-button>
       </el-empty>
-      <div style="margin-top: 16px">
+      <div class="step-actions">
         <el-button @click="activeStep = 1">上一步</el-button>
         <el-button type="primary" :disabled="!form.vehicleId" @click="activeStep = 3">下一步</el-button>
       </div>
@@ -146,7 +146,7 @@
 
       <div class="coupon-picker">
         <label>使用優惠券</label>
-        <el-select v-model="form.couponId" placeholder="不使用優惠券" clearable style="width: 100%">
+        <el-select v-model="form.couponId" placeholder="不使用優惠券" clearable popper-class="coupon-popper" style="width: 100%">
           <el-option
               v-for="c in usableCoupons"
               :key="c.id"
@@ -181,7 +181,7 @@
 
       <el-input v-model="form.remark" placeholder="備註（選填）" style="margin-top: 16px" />
 
-      <div style="margin-top: 16px">
+      <div class="step-actions">
         <el-button @click="activeStep = 2">上一步</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSubmit">送出預約</el-button>
       </div>
@@ -397,6 +397,18 @@ onMounted(async () => {
   max-width: 700px;
   margin: 24px auto;
   padding: 0 16px;
+}
+.step-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+.step-actions .el-button {
+  flex: 0 1 140px;
+  min-width: 110px;
+  min-height: 44px;
+  margin: 0;
 }
 .coupon-picker {
   margin-top: 16px;

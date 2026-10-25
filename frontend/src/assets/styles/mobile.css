@@ -21,6 +21,33 @@
    表格欄位名稱由 utils/mobileTable.js 寫入 td 的 data-label
    ========================================================= */
 @media (max-width: 768px) {
+  /* ---------- 下拉選單：選項放大，兩行內容（例如優惠券）不被切掉 ---------- */
+  .el-select-dropdown__item {
+    height: auto;
+    min-height: 48px;
+    padding: 10px 20px;
+    font-size: 17px;
+    line-height: 1.5;
+    white-space: normal;
+  }
+  .el-select__wrapper {
+    min-height: 48px;
+  }
+  .coupon-popper .el-select-dropdown__item {
+    min-height: 72px;
+  }
+  .coupon-popper .el-select-dropdown__item span {
+    font-size: inherit;
+  }
+
+  /* ---------- 頁面底部留白：最下面的按鈕不要貼著螢幕邊緣，方便點擊（也避開 iPhone 底部手勢列） ---------- */
+  .page-container {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+  .el-dialog__footer {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
   /* ---------- 字體放大：卡片版面有空間，整體字級調大 ---------- */
   :root {
     --el-font-size-extra-small: 14px;
@@ -264,8 +291,16 @@
   .el-button {
     min-height: 44px;
   }
+  /* iOS 只要聚焦的輸入元件字級小於 16px 就會自動放大畫面；下拉選單（el-select）、
+     日期/時段選擇器裡的 input 都要涵蓋，所以直接指定所有輸入元件 */
+  input,
+  select,
+  textarea,
   .el-input__inner,
-  .el-textarea__inner {
-    font-size: 16px; /* 避免 iOS 聚焦時自動放大畫面 */
+  .el-textarea__inner,
+  .el-select__input,
+  .el-select__selected-item,
+  .el-select__placeholder {
+    font-size: 16px !important;
   }
 }
