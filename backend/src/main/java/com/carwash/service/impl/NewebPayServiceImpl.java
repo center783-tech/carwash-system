@@ -60,6 +60,8 @@ public class NewebPayServiceImpl implements NewebPayService {
 
     private static final String MPG_VERSION = "2.0";
     private static final String QUERY_VERSION = "1.3";
+    /** 藍新 AES 補位的區塊大小（bytes） */
+    private static final int PAD_BLOCK = 32;
     private static final String ORDER_NO_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     /** 補查只看最近幾天內建立的付款單 */
     private static final int STALE_LOOKBACK_DAYS = 5;
@@ -113,7 +115,7 @@ public class NewebPayServiceImpl implements NewebPayService {
 
         Map<String, String> params = new LinkedHashMap<>();
         params.put("MerchantID", props.getMerchantId());
-        params.put("RespondType", "JSON");
+        params.put("RespondType", "String");
         params.put("TimeStamp", String.valueOf(System.currentTimeMillis() / 1000));
         params.put("Version", MPG_VERSION);
         params.put("MerchantOrderNo", payment.getMerchantOrderNo());
@@ -484,9 +486,10 @@ public class NewebPayServiceImpl implements NewebPayService {
     /** AES-256-CBC / PKCS7，輸出小寫 16 進位字串 */
     private String encrypt(String plain) {
         try {
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            // 藍新的補位區塊是 32 bytes（不是 JCE PKCS5Padding 的 16），所以自己補位
+            Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, key(), iv());
-            return HexFormat.of().formatHex(cipher.doFinal(plain.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of().formatHex(cipher.doFinal(pkcs7Pad(plain.getBytes(StandardCharsets.UTF_8))));
         } catch (Exception e) {
             throw new IllegalStateException("藍新 TradeInfo 加密失敗（HashKey 長度=" + len(props.getHashKey())
                     + "，HashIV 長度=" + len(props.getHashIv()) + "，應為 32 / 16）：" + e.getMessage(), e);
@@ -495,12 +498,49 @@ public class NewebPayServiceImpl implements NewebPayService {
 
     private String decrypt(String hex) {
         try {
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            // 跟藍新官方範例一致：不讓 JCE 處理 padding，解完再自己去掉尾端補位，
+            // 避免藍新回傳的補位不符合標準 PKCS7 時整個解密失敗
+            Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, key(), iv());
-            return new String(cipher.doFinal(HexFormat.of().parseHex(hex)), StandardCharsets.UTF_8);
+            byte[] plain = cipher.doFinal(HexFormat.of().parseHex(hex.trim()));
+            return new String(stripPadding(plain), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new IllegalStateException("藍新 TradeInfo 解密失敗", e);
+            throw new IllegalStateException("藍新 TradeInfo 解密失敗：" + e.getClass().getSimpleName()
+                    + " " + e.getMessage() + "（密文長度=" + (hex == null ? 0 : hex.length()) + "）", e);
         }
+    }
+
+    /** 以 32 bytes 為區塊做 PKCS7 補位（藍新規格） */
+    private byte[] pkcs7Pad(byte[] source) {
+        int pad = PAD_BLOCK - source.length % PAD_BLOCK;
+        byte[] padded = java.util.Arrays.copyOf(source, source.length + pad);
+        java.util.Arrays.fill(padded, source.length, padded.length, (byte) pad);
+        return padded;
+    }
+
+    /** 去掉 32 bytes 區塊的 PKCS7 補位；補位不合法時，改去掉尾端的控制字元（0x00~0x20） */
+    private byte[] stripPadding(byte[] data) {
+        int end = data.length;
+        if (end == 0) {
+            return data;
+        }
+        int pad = data[end - 1] & 0xFF;
+        if (pad >= 1 && pad <= PAD_BLOCK && pad <= end) {
+            boolean valid = true;
+            for (int i = end - pad; i < end; i++) {
+                if ((data[i] & 0xFF) != pad) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid) {
+                return java.util.Arrays.copyOf(data, end - pad);
+            }
+        }
+        while (end > 0 && (data[end - 1] & 0xFF) <= PAD_BLOCK) {
+            end--;
+        }
+        return java.util.Arrays.copyOf(data, end);
     }
 
     private int len(String s) {
