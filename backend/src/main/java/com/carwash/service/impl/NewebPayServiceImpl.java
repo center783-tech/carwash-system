@@ -372,7 +372,8 @@ public class NewebPayServiceImpl implements NewebPayService {
             return;
         }
         log.warn("藍新退款失敗 orderNo={} cancel={} close={}", orderNo, cancelError, closeError);
-        throw new BusinessException("信用卡退款失敗，請聯絡店家處理：" + closeError);
+        throw new BusinessException("信用卡退款失敗，請聯絡店家處理（取消授權：" + cancelError
+                + "；請款後退款：" + closeError + "）");
     }
 
     /** 呼叫藍新信用卡取消/退款 API；成功回 null，失敗回藍新的錯誤訊息 */
