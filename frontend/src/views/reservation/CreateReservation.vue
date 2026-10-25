@@ -192,7 +192,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { listServices } from '@/api/service'
 import { listVehicles } from '@/api/member'
 import { listMyCoupons } from '@/api/coupon'
@@ -363,7 +363,7 @@ watch(
 async function handleSubmit() {
   submitting.value = true
   try {
-    await createReservation({
+    const reservation = await createReservation({
       memberId: authStore.userId,
       vehicleId: form.vehicleId,
       serviceId: form.serviceId,
@@ -375,9 +375,20 @@ async function handleSubmit() {
       remark: form.remark
     })
     ElMessage.success('預約建立成功')
-    router.push(`/reservations`)
-    // 如需接著導去付款頁，可改成：
-    // router.push({ path: '/payment', query: { reservationId: reservation.id } })
+    // 預約建立後詢問是否立即以信用卡付款；不付款也可以之後在「我的預約」補付
+    const payNow = await ElMessageBox.confirm('預約已建立，是否立即以信用卡付款？', '付款', {
+      confirmButtonText: '信用卡付款',
+      cancelButtonText: '稍後再付'
+    }).then(() => true).catch(() => false)
+    if (payNow) {
+      try {
+        await payByNewebPay(reservation.id)
+        return
+      } catch {
+        // 付款表單建立失敗：預約已建立，回預約列表可再按「信用卡付款」重試
+      }
+    }
+    router.push('/reservations')
   } finally {
     submitting.value = false
   }

@@ -35,6 +35,8 @@ public class SecurityConfig {
             "/api/members/register",
             "/api/members/login",
             "/api/admin/login",
+            "/api/payments/newebpay/notify",   // 藍新 NotifyURL，無 JWT，靠 TradeSha 驗證
+            "/api/payments/newebpay/return",   // 藍新 ReturnURL，使用者瀏覽器導回
             "/swagger-ui/**",
             "/v3/api-docs/**"
     };
@@ -57,6 +59,8 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         // 服務項目清單開放未登入瀏覽（洗車服務瀏覽功能）
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
+                        // 手動標記付款成功/失敗只有後台能用，避免會員自己把付款單改成已付款
+                        .requestMatchers("/api/payments/callback/**").hasAnyRole("ADMIN", "STAFF")
                         // 後台管理相關端點僅限 ADMIN / STAFF
                         .requestMatchers("/api/admin/**", "/api/employees/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/services/**").hasAnyRole("ADMIN", "STAFF")

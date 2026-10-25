@@ -44,6 +44,18 @@ public class Payment {
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
+    /** 金流商，見 PaymentProviders；現金付款為 NULL */
+    @Column(length = 20)
+    private String provider;
+
+    /** 送給金流商的商店訂單編號（藍新 MerchantOrderNo，最長 30 字元） */
+    @Column(name = "merchant_order_no", length = 30, unique = true)
+    private String merchantOrderNo;
+
+    /** 金流商回傳的交易序號（藍新 TradeNo） */
+    @Column(name = "provider_trade_no", length = 50)
+    private String providerTradeNo;
+
     /** 第三方金流交易序號 */
     @Column(name = "transaction_no", length = 100)
     private String transactionNo;

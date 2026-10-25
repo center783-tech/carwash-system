@@ -91,3 +91,14 @@ springdoc:
     tagsSorter: alpha
   # 正式環境建議關閉，只在開發/測試環境開放，避免 API 結構外洩
   # api-docs.enabled: false
+
+# 藍新金流（預設為測試環境 ccore；金鑰放 .env，正式環境改 core.newebpay.com 與正式商店資料）
+# returnUrl / notifyUrl 必須是藍新連得到的公開網址，本機開發請用 ngrok 等工具轉發
+newebpay:
+  merchant-id: ${NEWEBPAY_MERCHANT_ID:}
+  hash-key: ${NEWEBPAY_HASH_KEY:}
+  hash-iv: ${NEWEBPAY_HASH_IV:}
+  gateway-url: ${NEWEBPAY_GATEWAY_URL:https://ccore.newebpay.com/MPG/mpg_gateway}
+  query-url: ${NEWEBPAY_QUERY_URL:https://ccore.newebpay.com/API/QueryTradeInfo}
+  return-url: ${NEWEBPAY_RETURN_URL:http://localhost:8081/api/payments/newebpay/return}
+  notify-url: ${NEWEBPAY_NOTIFY_URL:http://localhost:8081/api/payments/newebpay/notify}

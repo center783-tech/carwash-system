@@ -39,6 +39,9 @@
       </el-table-column>
       <el-table-column label="操作">
         <template #default="{ row }">
+          <el-button v-if="row.status === 'PENDING'" type="primary" link @click="handlePay(row.id)">
+            信用卡付款
+          </el-button>
           <el-button
               v-if="row.status === 'PENDING' || row.status === 'CONFIRMED'"
               type="danger" link
@@ -57,12 +60,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listReservationsByMember, cancelReservation } from '@/api/reservation'
+import { payByNewebPay, queryPendingNewebPayTrades } from '@/api/payment'
 import { useAuthStore } from '@/store/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const reservations = ref([])
 const loading = ref(false)
@@ -127,7 +132,22 @@ async function handleCancel(id) {
   fetchData()
 }
 
-onMounted(fetchData)
+async function handlePay(id) {
+  await payByNewebPay(id)
+}
+
+onMounted(async () => {
+  // 從藍新刷卡頁導回：NotifyURL 可能還沒到，先補查逾時未付款的交易再載入列表
+  if (route.query.payment === 'newebpay') {
+    try {
+      await queryPendingNewebPayTrades()
+    } catch {
+      // 補查失敗不影響列表顯示
+    }
+    ElMessage.info('已回到本站，付款結果以下方預約狀態為準（已付款會顯示「已確認」）')
+  }
+  fetchData()
+})
 </script>
 
 <style scoped>

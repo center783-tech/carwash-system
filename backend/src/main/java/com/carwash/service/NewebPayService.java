@@ -1,0 +1,21 @@
+package com.carwash.service;
+
+import com.carwash.controller.dto.NewebPayPaymentFormResponse;
+import com.carwash.controller.dto.NewebPayTradeQueryResponse;
+
+import java.util.List;
+
+public interface NewebPayService {
+
+    /** 為預約建立一筆信用卡付款單，並回傳要 POST 到藍新 MPG 的表單欄位 */
+    NewebPayPaymentFormResponse createPaymentForm(Long reservationId, Long memberId);
+
+    /** 主動向藍新查詢交易結果；若已付款則補更新付款/預約狀態（NotifyURL 沒收到時的備援） */
+    NewebPayTradeQueryResponse queryPaymentStatus(Long paymentId, Long memberId);
+
+    /** 補查該會員逾時仍未付款的藍新付款單 */
+    List<NewebPayTradeQueryResponse> queryStalePendingPayments(Long memberId);
+
+    /** 處理藍新 NotifyURL 的 form-urlencoded 原始內容；驗證失敗或處理失敗會丟例外，讓藍新稍後重送 */
+    void handleNotify(String rawBody);
+}
