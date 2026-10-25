@@ -304,3 +304,53 @@
     font-size: 16px !important;
   }
 }
+
+/* =========================================================
+   優惠券下拉選單（所有螢幕寬度）：選項高度隨內容撐開、字放大，
+   不被 Element Plus 預設的固定 34px 高度切掉
+   ========================================================= */
+.coupon-popper {
+  min-width: 320px !important;
+}
+.coupon-popper .el-select-dropdown__item {
+  height: auto;
+  min-height: 72px;
+  padding: 10px 16px;
+  line-height: 1.5;
+  white-space: normal;
+}
+.coupon-popper .el-select-dropdown__item.is-disabled {
+  color: var(--ink-text-secondary);
+}
+.coupon-popper .coupon-option__main {
+  font-size: 16px;
+}
+.coupon-popper .coupon-option__sub {
+  font-size: 14px;
+}
+
+/* 優惠券下拉選單：桌機版再放大，並用 !important 避免被 Element Plus 預設值蓋掉 */
+@media (min-width: 769px) {
+  .coupon-popper {
+    min-width: 420px !important;
+  }
+  .coupon-popper .el-select-dropdown__item {
+    height: auto !important;
+    min-height: 84px !important;
+    padding: 12px 20px !important;
+    font-size: 18px !important;
+    line-height: 1.6 !important;
+    white-space: normal !important;
+  }
+  .coupon-popper .coupon-option__main {
+    font-size: 19px !important;
+    color: var(--ink-text, #222);
+  }
+  .coupon-popper .coupon-option__sub {
+    font-size: 16px !important;
+  }
+  .coupon-picker .el-select__wrapper {
+    min-height: 48px;
+    font-size: 17px;
+  }
+}

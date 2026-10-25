@@ -387,7 +387,8 @@ public class NewebPayServiceImpl implements NewebPayService {
             cipher.init(Cipher.ENCRYPT_MODE, key(), iv());
             return HexFormat.of().formatHex(cipher.doFinal(plain.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new IllegalStateException("藍新 TradeInfo 加密失敗，請確認 HashKey(32 字元)/HashIV(16 字元)", e);
+            throw new IllegalStateException("藍新 TradeInfo 加密失敗（HashKey 長度=" + len(props.getHashKey())
+                    + "，HashIV 長度=" + len(props.getHashIv()) + "，應為 32 / 16）：" + e.getMessage(), e);
         }
     }
 
@@ -399,6 +400,10 @@ public class NewebPayServiceImpl implements NewebPayService {
         } catch (Exception e) {
             throw new IllegalStateException("藍新 TradeInfo 解密失敗", e);
         }
+    }
+
+    private int len(String s) {
+        return s == null ? 0 : s.getBytes(StandardCharsets.UTF_8).length;
     }
 
     private SecretKeySpec key() {
