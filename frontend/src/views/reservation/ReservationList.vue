@@ -189,7 +189,7 @@ onMounted(async () => {
     } catch {
       // 補查失敗不影響列表顯示
     }
-    ElMessage.info('已回到本站，付款結果以下方預約狀態為準（已付款會顯示「已確認」）')
+    ElMessage.info('已回到本站，付款結果以下方預約狀態為準（已付款會顯示「已付款」）')
   }
   fetchData()
 })
