@@ -61,8 +61,6 @@ public class NewebPayServiceImpl implements NewebPayService {
     private static final String MPG_VERSION = "2.0";
     private static final String QUERY_VERSION = "1.3";
     private static final String ORDER_NO_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    /** 付款單超過這麼多分鐘還沒收到通知，才算「逾時未付款」去補查 */
-    private static final int STALE_AFTER_MINUTES = 5;
     /** 補查只看最近幾天內建立的付款單 */
     private static final int STALE_LOOKBACK_DAYS = 5;
     /** ATM 虛擬帳號的繳費期限（天） */
@@ -226,10 +224,15 @@ public class NewebPayServiceImpl implements NewebPayService {
     public List<NewebPayTradeQueryResponse> queryStalePendingPayments(Long memberId) {
         LocalDateTime now = LocalDateTime.now();
         List<Payment> pending = paymentRepository.findPendingByMember(memberId, PaymentProviders.NEWEBPAY,
-                PaymentStatus.UNPAID, now.minusDays(STALE_LOOKBACK_DAYS), now.minusMinutes(STALE_AFTER_MINUTES));
+                PaymentStatus.UNPAID, now.minusDays(STALE_LOOKBACK_DAYS), now);
         List<NewebPayTradeQueryResponse> responses = new ArrayList<>();
         for (Payment payment : pending) {
-            responses.add(queryAndSync(payment));
+            try {
+                responses.add(queryAndSync(payment));
+            } catch (Exception e) {
+                // 單筆查詢失敗（例如藍新暫時連不上）不影響其他筆
+                log.warn("補查藍新交易失敗 paymentId={}", payment.getId(), e);
+            }
         }
         return responses;
     }

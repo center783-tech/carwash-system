@@ -15,7 +15,7 @@ public interface NewebPayService {
     /** 主動向藍新查詢交易結果；若已付款則補更新付款/預約狀態（NotifyURL 沒收到時的備援） */
     NewebPayTradeQueryResponse queryPaymentStatus(Long paymentId, Long memberId);
 
-    /** 補查該會員逾時仍未付款的藍新付款單 */
+    /** 補查該會員最近仍未付款的藍新付款單（付款完導回網站時呼叫） */
     List<NewebPayTradeQueryResponse> queryStalePendingPayments(Long memberId);
 
     /** 信用卡線上退款（取消預約時用）：先試取消授權，失敗再試請款後退款；兩者都失敗會丟 BusinessException */
