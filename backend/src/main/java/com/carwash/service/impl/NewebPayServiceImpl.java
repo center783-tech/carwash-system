@@ -146,20 +146,24 @@ public class NewebPayServiceImpl implements NewebPayService {
         String merchantOrderNo = null;
         Payment payment = null;
         try {
-            MultiValueMap<String, String> form = parseForm(rawBody);
+            // 通常是 form-urlencoded；保險起見也接受 JSON 本文
+            MultiValueMap<String, String> form = parseNotifyBody(rawBody);
             String tradeInfo = form.getFirst("TradeInfo");
             String tradeSha = form.getFirst("TradeSha");
             if (tradeInfo == null || tradeSha == null) {
-                saveNotification(null, null, rawBody, NotifyStatus.INVALID, "缺少 TradeInfo 或 TradeSha");
+                log.warn("藍新通知缺少 TradeInfo/TradeSha，欄位={}", form.keySet());
+                saveNotification(null, null, rawBody, NotifyStatus.INVALID,
+                        "缺少 TradeInfo 或 TradeSha，收到的欄位：" + form.keySet());
                 throw new BusinessException("通知格式不正確");
             }
             if (!MessageDigest.isEqual(tradeSha(tradeInfo).getBytes(StandardCharsets.UTF_8),
                     tradeSha.toUpperCase().getBytes(StandardCharsets.UTF_8))) {
+                log.warn("藍新通知 TradeSha 驗證失敗，請確認 HashKey/HashIV 與藍新後台一致");
                 saveNotification(null, null, rawBody, NotifyStatus.INVALID, "TradeSha 驗證失敗");
                 throw new BusinessException("TradeSha 驗證失敗");
             }
 
-            JsonNode root = objectMapper.readTree(decrypt(tradeInfo));
+            JsonNode root = parseTradeInfo(decrypt(tradeInfo));
             JsonNode result = root.path("Result");
             merchantOrderNo = result.path("MerchantOrderNo").asText(null);
             boolean success = "SUCCESS".equals(root.path("Status").asText());
@@ -168,6 +172,7 @@ public class NewebPayServiceImpl implements NewebPayService {
             payment = merchantOrderNo == null ? null
                     : paymentRepository.findByMerchantOrderNo(merchantOrderNo).orElse(null);
             if (payment == null) {
+                log.warn("藍新通知找不到付款單 merchantOrderNo={}", merchantOrderNo);
                 saveNotification(null, merchantOrderNo, rawBody, NotifyStatus.FAILED, "找不到對應的付款單");
                 throw new BusinessException("找不到對應的付款單");
             }
@@ -182,6 +187,35 @@ public class NewebPayServiceImpl implements NewebPayService {
             // 讓藍新收到非 200，稍後重送
             throw new BusinessException("處理藍新通知失敗");
         }
+    }
+
+    private MultiValueMap<String, String> parseNotifyBody(String rawBody) {
+        String body = rawBody == null ? "" : rawBody.trim();
+        if (body.startsWith("{")) {
+            MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+            try {
+                objectMapper.readTree(body).fields().forEachRemaining(e -> map.add(e.getKey(), e.getValue().asText()));
+            } catch (Exception e) {
+                // 解析失敗就回空，由呼叫端當作格式錯誤
+            }
+            return map;
+        }
+        return parseForm(body);
+    }
+
+    /** TradeInfo 解密後通常是 JSON（{Status, Message, Result:{...}}）；若是 querystring 就包成同樣結構 */
+    private JsonNode parseTradeInfo(String plain) throws Exception {
+        String text = plain.trim();
+        if (text.startsWith("{")) {
+            return objectMapper.readTree(text);
+        }
+        MultiValueMap<String, String> flat = parseForm(text);
+        var root = objectMapper.createObjectNode();
+        var result = root.putObject("Result");
+        flat.forEach((k, v) -> result.put(k, v.get(0)));
+        root.put("Status", flat.getFirst("Status") == null ? "" : flat.getFirst("Status"));
+        root.put("Message", flat.getFirst("Message") == null ? "" : flat.getFirst("Message"));
+        return root;
     }
 
     /** 在單一交易內更新付款單與預約狀態，回傳要記錄的 NotifyStatus */
