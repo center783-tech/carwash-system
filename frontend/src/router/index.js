@@ -100,6 +100,12 @@ const routes = [
     name: 'AdminZoneManage',
     component: () => import('@/views/admin/ZoneManage.vue'),
     meta: { requiresAuth: true, requiresAdmin: true, hideNavBar: true }
+  },
+  {
+    path: '/admin/closed-dates',
+    name: 'AdminClosedDateManage',
+    component: () => import('@/views/admin/ClosedDateManage.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, hideNavBar: true }
   }
 ]
 

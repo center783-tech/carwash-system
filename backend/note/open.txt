@@ -9,7 +9,9 @@ npm run dev
 wsl -d Ubuntu
 
 cd Desktop/project/carwash-system/backend
+./mvnw spring-boot:run
 cd Desktop/project/carwash-system/frontend
+npm run dev
 
 
 //上傳ec2

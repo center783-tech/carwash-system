@@ -26,6 +26,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     Page<Reservation> findByMemberId(Long memberId, Pageable pageable);
 
+    Page<Reservation> findByMemberIdAndStatusIn(Long memberId, java.util.Collection<ReservationStatus> statuses, Pageable pageable);
+
     List<Reservation> findByReservationDate(LocalDate reservationDate);
 
     /** 依日期範圍查詢（含頭尾兩天），給後台查詢用 */

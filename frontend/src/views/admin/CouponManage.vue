@@ -43,8 +43,8 @@
           <span class="hint">定額請輸入金額；百分比請輸入 1~100（例如 90 代表 9 折）</span>
         </el-form-item>
         <el-form-item label="最低消費"><el-input-number v-model="form.minAmount" :min="0" /></el-form-item>
-        <el-form-item label="生效日期"><el-date-picker v-model="form.startDate" type="date" /></el-form-item>
-        <el-form-item label="到期日期"><el-date-picker v-model="form.endDate" type="date" /></el-form-item>
+        <el-form-item label="生效日期"><el-date-picker v-model="form.startDate" type="date" :editable="false" /></el-form-item>
+        <el-form-item label="到期日期"><el-date-picker v-model="form.endDate" type="date" :editable="false" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -52,22 +52,41 @@
       </template>
     </el-dialog>
 
-    <!-- 發放給會員 -->
-    <el-dialog v-model="issueDialogVisible" title="發放給會員">
-      <el-form label-width="80px">
-        <el-form-item label="會員 ID">
-          <el-input-number v-model="issueMemberId" :min="1" style="width: 100%" @change="lookupMember" />
-        </el-form-item>
-        <template v-if="issueMember">
-          <el-form-item label="姓名">{{ issueMember.realName || issueMember.username }}</el-form-item>
-          <el-form-item label="Gmail">{{ issueMember.email }}</el-form-item>
-        </template>
-        <p v-else-if="memberNotFound" class="member-error">找不到這位會員</p>
-        <p v-if="issueMember" class="hint">發放後會寄送通知信到上方信箱</p>
-      </el-form>
+    <!-- 發放給會員：先列出 10 筆，勾選後一次發放 -->
+    <el-dialog v-model="issueDialogVisible" title="發放給會員" width="640px">
+      <el-input
+          v-model="keyword"
+          placeholder="搜尋姓名、電話、Email"
+          clearable
+          @keyup.enter="searchMembers"
+          @clear="searchMembers"
+      >
+        <template #append><el-button @click="searchMembers">搜尋</el-button></template>
+      </el-input>
+
+      <div v-loading="membersLoading" class="member-list">
+        <label v-for="m in members" :key="m.id" class="member-row" :class="{ 'member-row--on': selected.has(m.id) }">
+          <el-checkbox :model-value="selected.has(m.id)" @change="toggleMember(m)" />
+          <div class="member-row__info">
+            <strong>{{ m.realName || m.username }}</strong>
+            <span>{{ m.phone || '—' }}</span>
+            <span>{{ m.email || '—' }}</span>
+          </div>
+        </label>
+        <p v-if="!membersLoading && members.length === 0" class="hint">找不到符合的會員</p>
+      </div>
+
+      <div class="member-more">
+        <span class="hint">已載入 {{ members.length }} / {{ memberTotal }} 位</span>
+        <el-button v-if="members.length < memberTotal" :loading="membersLoading" @click="loadMore">載入更多 10 筆</el-button>
+      </div>
+
       <template #footer>
+        <span class="footer-hint">已勾選 {{ selected.size }} 位，發放後會寄通知信</span>
         <el-button @click="issueDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="issuing" :disabled="!issueMember" @click="handleIssue">發放</el-button>
+        <el-button type="primary" :loading="issuing" :disabled="selected.size === 0" @click="handleIssue">
+          發放（{{ selected.size }}）
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -78,8 +97,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import AdminNav from '@/components/AdminNav.vue'
-import { listActiveCoupons, createCoupon, issueCouponToMember } from '@/api/coupon'
-import { getMember } from '@/api/member'
+import { listActiveCoupons, createCoupon, listMembersForAdmin, issueCouponToMembers } from '@/api/coupon'
 
 const coupons = ref([])
 const loading = ref(false)
@@ -88,9 +106,13 @@ const issuing = ref(false)
 const dialogVisible = ref(false)
 const issueDialogVisible = ref(false)
 const currentCouponId = ref(null)
-const issueMemberId = ref(null)
-const issueMember = ref(null)
-const memberNotFound = ref(false)
+const keyword = ref('')
+const members = ref([])
+const memberTotal = ref(0)
+const membersLoading = ref(false)
+const selected = reactive(new Set())
+let memberPage = 0
+let memberSeq = 0
 
 const form = reactive({
   code: '', discountType: 'FIXED', discountValue: 0, minAmount: 0, startDate: null, endDate: null
@@ -123,35 +145,49 @@ async function handleCreate() {
 
 function openIssueDialog(row) {
   currentCouponId.value = row.id
-  issueMemberId.value = null
-  issueMember.value = null
-  memberNotFound.value = false
+  keyword.value = ''
+  selected.clear()
   issueDialogVisible.value = true
+  searchMembers()
 }
 
-// 輸入會員 ID 後帶出姓名與 Gmail，讓管理員確認發給對的人
-let lookupSeq = 0
-async function lookupMember(id) {
-  const seq = ++lookupSeq
-  issueMember.value = null
-  memberNotFound.value = false
-  if (!id) return
+// 先撈 10 筆，要更多再按「載入更多」；勾選的會員跨頁保留
+const PAGE_SIZE = 10
+async function fetchMembers(page) {
+  membersLoading.value = true
+  const seq = ++memberSeq
   try {
-    const member = await getMember(id)
-    if (seq === lookupSeq) issueMember.value = member
-  } catch {
-    if (seq === lookupSeq) memberNotFound.value = true
+    const result = await listMembersForAdmin({ keyword: keyword.value, page, size: PAGE_SIZE })
+    if (seq !== memberSeq) return
+    members.value = page === 0 ? result.content : [...members.value, ...result.content]
+    memberPage = page
+    memberTotal.value = result.totalElements
+  } finally {
+    if (seq === memberSeq) membersLoading.value = false
   }
+}
+function searchMembers() {
+  members.value = []
+  memberTotal.value = 0
+  return fetchMembers(0)
+}
+function loadMore() {
+  return fetchMembers(memberPage + 1)
+}
+
+function toggleMember(m) {
+  if (selected.has(m.id)) selected.delete(m.id)
+  else selected.add(m.id)
 }
 
 async function handleIssue() {
   issuing.value = true
   try {
-    const result = await issueCouponToMember(currentCouponId.value, issueMemberId.value)
-    if (result.emailSent) {
-      ElMessage.success('發放成功，已寄送通知信到會員信箱')
+    const result = await issueCouponToMembers(currentCouponId.value, [...selected])
+    if (result.emailFailed === 0) {
+      ElMessage.success(`已發放給 ${result.issued} 位會員，並寄送通知信`)
     } else {
-      ElMessage.warning('發放成功，但通知信寄送失敗，請另行通知會員')
+      ElMessage.warning(`已發放給 ${result.issued} 位會員，其中 ${result.emailFailed} 位通知信寄送失敗，請另行通知`)
     }
     issueDialogVisible.value = false
   } finally {
@@ -173,10 +209,50 @@ onMounted(fetchCoupons)
   justify-content: space-between;
   align-items: center;
 }
-.member-error {
-  margin: 0;
+.member-list {
+  margin-top: 12px;
+  min-height: 80px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  border: 1px solid var(--paper-dim);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.member-row--on {
+  border-color: var(--rinse);
+  background: var(--el-color-primary-light-9);
+}
+.member-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
   font-size: 13px;
-  color: var(--danger);
+  color: var(--ink-text-secondary);
+  word-break: break-all;
+}
+.member-row__info strong {
+  font-size: 15px;
+  color: var(--ink);
+}
+.member-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.footer-hint {
+  margin-right: 12px;
+  font-size: 13px;
+  color: var(--ink-text-secondary);
 }
 .hint {
   display: block;

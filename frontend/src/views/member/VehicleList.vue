@@ -37,7 +37,7 @@
           </span>
         </el-form-item>
         <el-form-item label="廠牌" prop="brand">
-          <el-select v-model="brandChoice" placeholder="請選擇廠牌" filterable style="width: 100%" @change="onBrandChange">
+          <el-select v-model="brandChoice" placeholder="請選擇廠牌" :filterable="!isTouchDevice"style="width: 100%" @change="onBrandChange">
             <el-option v-for="b in brandOptions" :key="b" :label="b" :value="b" />
             <el-option label="其他（手動輸入）" :value="OTHER" />
           </el-select>
@@ -48,7 +48,7 @@
               v-model="modelChoice"
               :placeholder="brandChoice ? '請選擇車型' : '請先選擇廠牌'"
               :disabled="!brandChoice"
-              filterable
+              :filterable="!isTouchDevice"
               style="width: 100%"
           >
             <el-option v-for="m in modelOptions" :key="m" :label="m" :value="m" />
@@ -69,6 +69,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+
+// 觸控裝置關閉下拉搜尋，避免點選單時彈出鍵盤（想自己輸入可選「其他（手動輸入）」）
+const isTouchDevice = window.matchMedia('(pointer: coarse)').matches
 import { listVehicles, addVehicle, updateVehicle, deleteVehicle } from '@/api/member'
 import { useAuthStore } from '@/store/auth'
 import { vehicleCatalog, brandOptions, OTHER } from '@/data/vehicleCatalog'

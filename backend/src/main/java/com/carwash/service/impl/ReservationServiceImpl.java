@@ -31,6 +31,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final EmployeeRepository employeeRepository;
     private final MemberCouponRepository memberCouponRepository;
     private final ParkingZoneRepository parkingZoneRepository;
+    private final ClosedDateRepository closedDateRepository;
 
     @Override
     public Reservation createReservation(Long memberId, Long vehicleId, Long serviceId, Long employeeId, Long zoneId,
@@ -48,6 +49,10 @@ public class ReservationServiceImpl implements ReservationService {
         LocalDateTime reservationDateTime = LocalDateTime.of(reservationDate, timeSlotStart);
         if (reservationDateTime.isBefore(LocalDateTime.now().plusHours(12))) {
             throw new BusinessException("預約時段須在 12 小時後，請選擇更晚的日期或時段");
+        }
+
+        if (closedDateRepository.existsByClosedDate(reservationDate)) {
+            throw new BusinessException("該日為休息日，不開放預約，請改選其他日期");
         }
 
         Employee employee = null;
@@ -84,6 +89,9 @@ public class ReservationServiceImpl implements ReservationService {
                     .orElseThrow(() -> ResourceNotFoundException.of("MemberCoupon", couponId));
             if (memberCoupon.getIsUsed() == 1) {
                 throw new BusinessException("此優惠券已被使用");
+            }
+            if (memberCoupon.getRedeemStartedAt() != null) {
+                throw new BusinessException("此優惠券正在現場使用中，無法用於預約");
             }
             Coupon coupon = memberCoupon.getCoupon();
             if (coupon.getStatus() == 0 || coupon.getEndDate().isBefore(LocalDate.now())) {
@@ -171,6 +179,15 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional(readOnly = true)
     public Page<Reservation> listByMember(Long memberId, Pageable pageable) {
         return reservationRepository.findByMemberId(memberId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Reservation> listByMember(Long memberId, List<ReservationStatus> statuses, Pageable pageable) {
+        if (statuses == null || statuses.isEmpty()) {
+            return reservationRepository.findByMemberId(memberId, pageable);
+        }
+        return reservationRepository.findByMemberIdAndStatusIn(memberId, statuses, pageable);
     }
 
     @Override

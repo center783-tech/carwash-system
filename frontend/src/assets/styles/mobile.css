@@ -1,8 +1,108 @@
+/* 重點欄位（例如預約的日期、時段）：加深加粗 */
+.el-table__body td.el-table__cell.highlight-cell {
+  background: #eceff1;
+}
+.el-table__body tr:hover > td.el-table__cell.highlight-cell {
+  background: #eceff1;
+}
+.el-table__body td.el-table__cell.highlight-cell .cell {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* 表格欄位沒有資料時顯示「—」，不要留一片空白（桌機、手機都適用） */
+.el-table__body td.el-table__cell:not([data-label=""]):not([data-label="操作"]) .cell:empty::after {
+  content: '—';
+  color: var(--ink-text-secondary);
+}
+
 /* =========================================================
    手機版（<= 768px）：表格改卡片、表單直式、彈窗滿版、觸控友善
    表格欄位名稱由 utils/mobileTable.js 寫入 td 的 data-label
    ========================================================= */
 @media (max-width: 768px) {
+  /* ---------- 字體放大：卡片版面有空間，整體字級調大 ---------- */
+  :root {
+    --el-font-size-extra-small: 14px;
+    --el-font-size-small: 15px;
+    --el-font-size-base: 17px;
+    --el-font-size-medium: 18px;
+    --el-font-size-large: 20px;
+    --el-font-size-extra-large: 22px;
+  }
+  body {
+    font-size: 17px;
+    line-height: 1.6;
+  }
+  h2 {
+    font-size: 26px;
+  }
+  .el-button {
+    font-size: 16px;
+  }
+  .el-tag {
+    font-size: 15px;
+    height: 30px;
+    padding: 0 12px;
+  }
+  .el-alert__content,
+  .el-alert__title,
+  .el-descriptions__label,
+  .el-descriptions__content,
+  .el-form-item__label {
+    font-size: 16px;
+  }
+
+  /* 各頁 scoped 樣式裡寫死的小字（12~14px），手機統一放大；用 !important 才蓋得過 scoped 樣式 */
+  .service-card__category,
+  .service-card__meta,
+  .duration,
+  .description,
+  .hint,
+  .code-hint,
+  .coupon-empty,
+  .coupon-estimate-hint,
+  .coupon-threshold-hint,
+  .coupon-option__sub,
+  .zone-card span,
+  .zone-full-hint,
+  .zone-picker label,
+  .coupon-picker label,
+  .date-picker-block label,
+  .footer-hint,
+  .pager__info,
+  .show__warn {
+    font-size: 15px !important;
+  }
+  .service-card h3,
+  .coupon__body h3 {
+    font-size: 20px !important;
+  }
+  .coupon__body p {
+    font-size: 15px !important;
+  }
+  .coupon__value {
+    font-size: 22px !important;
+    width: 104px !important;
+  }
+  .coupon-option__main,
+  .zone-card strong {
+    font-size: 17px;
+  }
+  .day-cell {
+    font-size: 18px !important;
+    padding: 12px 0 !important;
+  }
+  .day-cell small {
+    font-size: 12px !important;
+  }
+  .member-row__info {
+    font-size: 15px !important;
+  }
+  .member-row__info strong {
+    font-size: 18px !important;
+  }
+
   /* ---------- 表格 → 卡片 ---------- */
   .el-table {
     background: transparent;
@@ -13,6 +113,16 @@
   }
   .el-table__header-wrapper {
     display: none;
+  }
+  /* 表格內容外層的 scrollbar view 預設是 inline-block，會讓卡片縮成內容寬度（只佔畫面 1/3），強制撐滿 */
+  .el-table,
+  .el-table__inner-wrapper,
+  .el-table .el-scrollbar,
+  .el-table .el-scrollbar__wrap,
+  .el-table .el-scrollbar__view {
+    display: block;
+    width: 100% !important;
+    box-sizing: border-box;
   }
   .el-table__body-wrapper,
   .el-table__body,
@@ -49,7 +159,7 @@
   .el-table__body td.el-table__cell::before {
     content: attr(data-label);
     flex-shrink: 0;
-    font-size: 13px;
+    font-size: 16px;
     color: var(--ink-text-secondary);
     text-align: left;
   }
@@ -73,6 +183,32 @@
   .el-table__empty-block {
     width: 100% !important;
     min-height: 80px;
+  }
+  /* 沒有內容的操作欄（例如已取消的預約沒有按鈕）整格隱藏，避免卡片底部出現一塊空白 */
+  .el-table__body td.el-table__cell[data-empty="1"][data-label=""],
+  .el-table__body td.el-table__cell[data-empty="1"][data-label="操作"] {
+    display: none;
+  }
+  /* 讓卡片上標籤與內容的間距更舒適、文字不被截斷 */
+  .el-table__body td.el-table__cell {
+    min-height: 48px;
+    font-size: 18px;
+  }
+  /* 重點欄位在手機卡片上再放大，標籤也加深 */
+  .el-table__body td.el-table__cell.highlight-cell {
+    font-size: 30px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    border-bottom: none;
+    border-radius: 8px;
+  }
+  .el-table__body td.el-table__cell.highlight-cell .cell {
+    font-size: 30px;
+    line-height: 1.3;
+  }
+  .el-table__body td.el-table__cell.highlight-cell::before {
+    color: var(--ink);
+    font-weight: 600;
   }
 
   /* ---------- 分頁 ---------- */
@@ -126,7 +262,7 @@
 
   /* ---------- 觸控友善 ---------- */
   .el-button {
-    min-height: 36px;
+    min-height: 44px;
   }
   .el-input__inner,
   .el-textarea__inner {

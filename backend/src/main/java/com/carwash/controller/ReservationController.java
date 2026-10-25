@@ -1,5 +1,6 @@
 package com.carwash.controller;
 
+import com.carwash.constant.ReservationStatus;
 import com.carwash.controller.dto.CreateReservationRequest;
 import com.carwash.controller.dto.ReservationResponse;
 import com.carwash.entity.Reservation;
@@ -57,9 +58,10 @@ public class ReservationController {
     @GetMapping("/member/{memberId}")
     public ApiResponse<Page<ReservationResponse>> listByMember(@PathVariable Long memberId,
                                                                 @RequestParam(defaultValue = "0") int page,
-                                                                @RequestParam(defaultValue = "10") int size) {
+                                                                @RequestParam(defaultValue = "10") int size,
+                                                                @RequestParam(required = false) List<ReservationStatus> statuses) {
         Page<ReservationResponse> result = reservationService
-                .listByMember(memberId, PageRequest.of(page, size))
+                .listByMember(memberId, statuses, PageRequest.of(page, size))
                 .map(ReservationResponse::from);
         return ApiResponse.success(result);
     }

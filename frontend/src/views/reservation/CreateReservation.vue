@@ -25,21 +25,67 @@
         預約需在 12 小時前完成，太早或太晚的時段不會顯示在選項裡。
       </el-alert>
 
-      <el-date-picker
-          v-model="form.reservationDate"
-          type="date"
-          placeholder="選擇日期"
-          value-format="YYYY-MM-DD"
-          style="margin-right: 12px"
-          :disabled-date="isDateDisabled"
-          @change="form.timeSlotStart = null; form.zoneId = null"
-      />
+      <div class="date-picker-block">
+        <label>1. 選擇月份</label>
+        <el-date-picker
+            v-model="selectedMonth"
+            type="month"
+            placeholder="選擇月份"
+            value-format="YYYY-MM"
+            :clearable="false"
+            :editable="false"
+            :disabled-date="isMonthDisabled"
+            @change="form.reservationDate = null; form.timeSlotStart = null; form.zoneId = null"
+        />
+      </div>
+
+      <template v-if="selectedMonth">
+        <el-alert
+            :type="closedInMonth.length ? 'warning' : 'success'"
+            :closable="false"
+            show-icon
+            style="margin: 12px 0"
+        >
+          <template v-if="closedInMonth.length">
+            本月休息日（無法預約）：
+            <span v-for="c in closedInMonth" :key="c.id" class="closed-tag">
+              {{ Number(c.closedDate.slice(8)) }} 號{{ c.reason ? `（${c.reason}）` : '' }}
+            </span>
+          </template>
+          <template v-else>本月沒有休息日</template>
+        </el-alert>
+
+        <div class="date-picker-block">
+          <label>2. 選擇幾號</label>
+          <div class="day-grid">
+            <button
+                v-for="d in monthDays"
+                :key="d.date"
+                type="button"
+                class="day-cell"
+                :class="{ 'day-cell--active': form.reservationDate === d.date, 'day-cell--closed': d.closed }"
+                :disabled="d.disabled"
+                :title="d.closed ? '休息日' : ''"
+                @click="selectDay(d.date)"
+            >
+              {{ d.day }}
+              <small v-if="d.closed">休</small>
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <div class="date-picker-block" style="margin-top: 12px">
+        <label>3. 選擇時段</label>
       <el-time-select
           v-model="form.timeSlotStart"
           start="09:00" step="00:30" end="20:00"
           :min-time="minTimeForSelectedDate"
           placeholder="選擇時段"
+          :disabled="!form.reservationDate"
+          :editable="false"
       />
+      </div>
       <div v-if="form.reservationDate && form.timeSlotStart" class="zone-picker">
         <label>選擇車位區</label>
         <div v-loading="zonesLoading" class="zone-list">
@@ -151,7 +197,7 @@ import { listServices } from '@/api/service'
 import { listVehicles } from '@/api/member'
 import { listMyCoupons } from '@/api/coupon'
 import { createReservation } from '@/api/reservation'
-import { getZoneAvailability } from '@/api/zone'
+import { getZoneAvailability, listClosedDates } from '@/api/zone'
 import { useAuthStore } from '@/store/auth'
 
 const route = useRoute()
@@ -165,6 +211,7 @@ const myCoupons = ref([])
 const submitting = ref(false)
 const zones = ref([])
 const zonesLoading = ref(false)
+const closedDates = ref([])
 
 const form = reactive({
   serviceId: route.query.serviceId ? Number(route.query.serviceId) : null,
@@ -178,7 +225,7 @@ const form = reactive({
 
 const selectedZone = computed(() => zones.value.find((z) => z.id === form.zoneId))
 const selectedService = computed(() => services.value.find((s) => s.id === form.serviceId))
-const usableCoupons = computed(() => myCoupons.value.filter((c) => c.isUsed === 0))
+const usableCoupons = computed(() => myCoupons.value.filter((c) => c.isUsed === 0 && c.redeemRemainingSeconds == null))
 const selectedCoupon = computed(() => usableCoupons.value.find((c) => c.id === form.couponId))
 
 // 前端先估算一次折扣後金額，公式跟後端 ReservationServiceImpl.applyDiscount() 一致：
@@ -235,9 +282,40 @@ function earliestAllowed() {
 
 // 營業時間最晚到 20:00，如果連當天 20:00 都不滿 12 小時，這天就整天不能選
 function isDateDisabled(date) {
+  if (closedDates.value.some((c) => c.closedDate === toDateString(date))) return true
   const dayEnd = new Date(date)
   dayEnd.setHours(20, 0, 0, 0)
   return dayEnd < earliestAllowed()
+}
+
+const selectedMonth = ref(null) // 'YYYY-MM'
+
+// 月份選擇器：整個月都已過期（最後一天 20:00 不滿 12 小時）就不能選
+function isMonthDisabled(date) {
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0, 20, 0, 0, 0)
+  return lastDay < earliestAllowed()
+}
+
+const closedInMonth = computed(() =>
+    closedDates.value.filter((c) => selectedMonth.value && c.closedDate.startsWith(selectedMonth.value))
+)
+
+const monthDays = computed(() => {
+  if (!selectedMonth.value) return []
+  const [y, m] = selectedMonth.value.split('-').map(Number)
+  const count = new Date(y, m, 0).getDate()
+  const closedSet = new Set(closedInMonth.value.map((c) => c.closedDate))
+  return Array.from({ length: count }, (_, i) => {
+    const date = `${selectedMonth.value}-${String(i + 1).padStart(2, '0')}`
+    const closed = closedSet.has(date)
+    return { day: i + 1, date, closed, disabled: closed || isDateDisabled(new Date(y, m - 1, i + 1)) }
+  })
+})
+
+function selectDay(date) {
+  form.reservationDate = date
+  form.timeSlotStart = null
+  form.zoneId = null
 }
 
 // 選到的那天如果剛好是「12 小時門檻」落在的那一天，時段選擇要限制最早可選時間；
@@ -309,6 +387,7 @@ onMounted(async () => {
   services.value = await listServices()
   vehicles.value = await listVehicles(authStore.userId)
   myCoupons.value = await listMyCoupons(authStore.userId)
+  closedDates.value = await listClosedDates()
   if (form.serviceId) activeStep.value = 1
 })
 </script>
@@ -365,6 +444,46 @@ onMounted(async () => {
 }
 .coupon-option__warn {
   color: var(--danger);
+}
+.date-picker-block label {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-text-secondary);
+  margin-bottom: 6px;
+}
+.day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.day-cell {
+  padding: 8px 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--paper-dim);
+  border-radius: var(--radius-md);
+}
+.day-cell small {
+  margin-left: 2px;
+  font-size: 11px;
+}
+.day-cell:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.day-cell--closed {
+  background: var(--paper-dim);
+  color: var(--danger);
+}
+.day-cell--active {
+  border-color: var(--rinse);
+  background: var(--el-color-primary-light-9);
+}
+.closed-tag {
+  margin-right: 12px;
+  white-space: nowrap;
 }
 .zone-picker {
   margin-top: 16px;

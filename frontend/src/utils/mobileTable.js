@@ -10,6 +10,10 @@ function labelTables() {
       tr.querySelectorAll('td').forEach((td, i) => {
         const label = labels[i] || ''
         if (td.dataset.label !== label) td.dataset.label = label
+        // 內容完全是空的（例如沒有按鈕可按的操作欄）：標記起來，手機版把這格隱藏
+        const cell = td.querySelector('.cell')
+        const empty = cell && cell.textContent.trim() === '' && !cell.querySelector('*') ? '1' : ''
+        if ((td.dataset.empty || '') !== empty) td.dataset.empty = empty
       })
     })
   })

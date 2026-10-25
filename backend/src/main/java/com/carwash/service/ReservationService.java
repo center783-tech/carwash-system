@@ -33,6 +33,9 @@ public interface ReservationService {
 
     Page<Reservation> listByMember(Long memberId, Pageable pageable);
 
+    /** 只列出指定狀態的預約；statuses 為空代表不篩選 */
+    Page<Reservation> listByMember(Long memberId, java.util.List<com.carwash.constant.ReservationStatus> statuses, Pageable pageable);
+
     List<Reservation> listByDate(LocalDate date);
 
     /** 依日期範圍查詢（含頭尾兩天） */

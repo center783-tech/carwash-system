@@ -307,10 +307,13 @@ const year = new Date().getFullYear()
   .hero {
     flex-direction: column;
     text-align: left;
-    padding: 48px 24px;
+    padding: 40px 24px;
+    min-height: 0; /* 手機不用撐滿 480px，避免上下大片空白 */
+    gap: 24px;
   }
   .hero__art {
-    width: 260px;
+    width: min(260px, 70%);
+    align-self: center;
   }
   .stats,
   .about,

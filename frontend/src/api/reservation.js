@@ -21,8 +21,11 @@ export function completeReservation(id) {
   return request.put(`/reservations/${id}/complete`)
 }
 
-export function listReservationsByMember(memberId, page = 0, size = 10) {
-  return request.get(`/reservations/member/${memberId}`, { params: { page, size } })
+// statuses: 狀態陣列（例如 ['PENDING', 'CONFIRMED']），空陣列/不傳代表不篩選
+export function listReservationsByMember(memberId, page = 0, size = 10, statuses = []) {
+  const params = { page, size }
+  if (statuses.length) params.statuses = statuses.join(',')
+  return request.get(`/reservations/member/${memberId}`, { params })
 }
 
 export function listReservationsByDateRange(startDate, endDate) {

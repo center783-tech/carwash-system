@@ -42,6 +42,10 @@ public class MemberCoupon {
     @Column(name = "used_at")
     private LocalDateTime usedAt;
 
+    /** 會員按下「現場使用」的時間；超過 10 分鐘會自動轉成已使用 */
+    @Column(name = "redeem_started_at")
+    private LocalDateTime redeemStartedAt;
+
     @CreationTimestamp
     @Column(name = "received_at", updatable = false)
     private LocalDateTime receivedAt;

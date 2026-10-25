@@ -24,6 +24,7 @@
             start-placeholder="開始日期"
             end-placeholder="結束日期"
             value-format="YYYY-MM-DD"
+            :editable="false"
             @change="onCustomChange"
         />
       </div>

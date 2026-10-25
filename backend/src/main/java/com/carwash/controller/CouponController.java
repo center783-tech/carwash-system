@@ -1,6 +1,8 @@
 package com.carwash.controller;
 
 import com.carwash.constant.DiscountType;
+import com.carwash.controller.dto.CouponBatchIssueRequest;
+import com.carwash.controller.dto.CouponBatchIssueResponse;
 import com.carwash.controller.dto.CouponRequest;
 import com.carwash.controller.dto.CouponResponse;
 import com.carwash.controller.dto.MemberCouponResponse;
@@ -57,6 +59,20 @@ public class CouponController {
         return ApiResponse.success("發放成功", response);
     }
 
+    /** 後台勾選多位會員一次發放；某位會員寄信失敗不影響其他人，結果回報成功與寄信失敗人數 */
+    @PostMapping("/{couponId}/issue-batch")
+    public ApiResponse<CouponBatchIssueResponse> issueToMembers(
+            @PathVariable Long couponId, @Valid @RequestBody CouponBatchIssueRequest req) {
+        int issued = 0;
+        int emailFailed = 0;
+        for (Long memberId : req.getMemberIds().stream().distinct().toList()) {
+            MemberCoupon memberCoupon = couponService.issueToMember(memberId, couponId);
+            issued++;
+            if (!notifyMember(memberCoupon)) emailFailed++;
+        }
+        return ApiResponse.success("發放完成", new CouponBatchIssueResponse(issued, emailFailed));
+    }
+
     /** 寄通知信給會員；寄信失敗不影響已完成的發放，只回傳是否成功讓後台提示 */
     private boolean notifyMember(MemberCoupon memberCoupon) {
         var member = memberCoupon.getMember();
@@ -82,6 +98,12 @@ public class CouponController {
             log.warn("Coupon notification mail failed. memberId={}, couponId={}", member.getId(), coupon.getId(), e);
             return false;
         }
+    }
+
+    /** 會員到店出示優惠券：開始 10 分鐘倒數，時間到自動變成已使用 */
+    @PostMapping("/member-coupons/{memberCouponId}/redeem")
+    public ApiResponse<MemberCouponResponse> redeem(@PathVariable Long memberCouponId, @RequestParam Long memberId) {
+        return ApiResponse.success(MemberCouponResponse.from(couponService.startRedeem(memberCouponId, memberId)));
     }
 
     @GetMapping("/member/{memberId}")
