@@ -33,6 +33,7 @@ class ReservationServiceImplTest {
     @Mock private EmployeeRepository employeeRepository;
     @Mock private MemberCouponRepository memberCouponRepository;
     @Mock private ParkingZoneRepository parkingZoneRepository;
+    @Mock private ClosedDateRepository closedDateRepository;
 
     @InjectMocks
     private ReservationServiceImpl reservationService;
@@ -82,6 +83,18 @@ class ReservationServiceImplTest {
                 1L, 1L, 1L, null, 1L, date, startTime, null, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("無空車位");
+
+        verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
+    void createReservation_closedDate_throwsBusinessException() {
+        when(closedDateRepository.existsByClosedDate(date)).thenReturn(true);
+
+        assertThatThrownBy(() -> reservationService.createReservation(
+                1L, 1L, 1L, null, 1L, date, startTime, null, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("休息日");
 
         verify(reservationRepository, never()).save(any());
     }
