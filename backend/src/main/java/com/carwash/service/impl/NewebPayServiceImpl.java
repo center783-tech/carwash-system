@@ -400,10 +400,12 @@ public class NewebPayServiceImpl implements NewebPayService {
                     .retrieve()
                     .body(String.class);
             JsonNode root = objectMapper.readTree(json);
-            if ("SUCCESS".equals(root.path("Status").asText())) {
+            String status = root.path("Status").asText();
+            // TRA20001：取消授權已受理，由金融機構批次處理（手冊 4.4.2），不是失敗
+            if ("SUCCESS".equals(status) || (closeType == null && "TRA20001".equals(status))) {
                 return null;
             }
-            return root.path("Message").asText("藍新回應異常");
+            return status + " " + root.path("Message").asText("藍新回應異常");
         } catch (Exception e) {
             return "無法連線藍新：" + e.getMessage();
         }

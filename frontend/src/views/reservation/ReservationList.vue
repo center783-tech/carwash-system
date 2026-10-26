@@ -117,10 +117,8 @@ const statusMap = {
 }
 const statusText = (s) => statusMap[s]?.text || s
 const statusTagType = (s) => statusMap[s]?.type || 'info'
-// 已確認且已付款的預約，狀態直接顯示「已付款」
-const isPaidConfirmed = (row) => row.status === 'CONFIRMED' && row.paymentStatus === 'PAID'
-const rowStatusText = (row) => (isPaidConfirmed(row) ? '已付款' : statusText(row.status))
-const rowStatusTagType = (row) => (isPaidConfirmed(row) ? 'success' : statusTagType(row.status))
+const rowStatusText = (row) => statusText(row.status)
+const rowStatusTagType = (row) => statusTagType(row.status)
 
 const paymentMethodText = { CREDIT_CARD: '信用卡', ATM: 'ATM 轉帳', CASH: '現金', NEWEBPAY: '藍新' }
 const paymentTagMap = { PAID: 'success', REFUNDED: 'warning', UNPAID: 'info' }
@@ -189,7 +187,7 @@ onMounted(async () => {
     } catch {
       // 補查失敗不影響列表顯示
     }
-    ElMessage.info('已回到本站，付款結果以下方預約狀態為準（已付款會顯示「已付款」）')
+    ElMessage.info('已回到本站，付款結果以下方付款狀態為準')
   }
   fetchData()
 })
