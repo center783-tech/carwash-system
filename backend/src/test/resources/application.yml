@@ -47,6 +47,11 @@ jwt:
   # 產生範例：openssl rand -base64 32
   secret: ${JWT_SECRET:CHANGE_THIS_TO_A_RANDOM_32BYTE_SECRET_BEFORE_DEPLOY}
   expiration-ms: 86400000   # 24 小時
+  admin-expiration-ms: 28800000
+
+app:
+  cors:
+    allowed-origins: http://localhost:5174
 
 springdoc:
   api-docs:

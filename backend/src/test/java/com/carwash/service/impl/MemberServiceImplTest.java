@@ -5,6 +5,7 @@ import com.carwash.entity.Member;
 import com.carwash.exception.BusinessException;
 import com.carwash.exception.ResourceNotFoundException;
 import com.carwash.repository.MemberRepository;
+import com.carwash.service.LoginAttemptService;
 import com.carwash.service.MailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,9 @@ class MemberServiceImplTest {
 
     @Mock
     private MailService mailService;
+
+    @Mock
+    private LoginAttemptService loginAttemptService;
 
     @InjectMocks
     private MemberServiceImpl memberService;
@@ -114,6 +118,7 @@ class MemberServiceImplTest {
         Member result = memberService.login("testuser", "rawPassword");
 
         assertThat(result.getUsername()).isEqualTo("testuser");
+        verify(loginAttemptService).reset(LoginAttemptService.SCOPE_MEMBER, "testuser");
     }
 
     @Test
@@ -124,6 +129,28 @@ class MemberServiceImplTest {
         assertThatThrownBy(() -> memberService.login("testuser", "wrongPassword"))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("帳號或密碼錯誤");
+        verify(loginAttemptService).recordFailure(LoginAttemptService.SCOPE_MEMBER, "testuser");
+    }
+
+    @Test
+    void login_unknownUser_recordsFailure() {
+        when(memberRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> memberService.login("ghost", "whatever"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("帳號或密碼錯誤");
+        verify(loginAttemptService).recordFailure(LoginAttemptService.SCOPE_MEMBER, "ghost");
+    }
+
+    @Test
+    void login_locked_rejectedBeforeCheckingPassword() {
+        doThrow(new BusinessException("登入失敗次數過多"))
+                .when(loginAttemptService).checkNotLocked(LoginAttemptService.SCOPE_MEMBER, "testuser");
+
+        assertThatThrownBy(() -> memberService.login("testuser", "rawPassword"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("登入失敗次數過多");
+        verifyNoInteractions(memberRepository, passwordEncoder);
     }
 
     @Test

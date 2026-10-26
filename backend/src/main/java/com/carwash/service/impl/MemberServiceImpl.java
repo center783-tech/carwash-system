@@ -6,6 +6,7 @@ import com.carwash.exception.BusinessException;
 import com.carwash.exception.ResourceNotFoundException;
 import com.carwash.repository.MemberRepository;
 import com.carwash.service.MailService;
+import com.carwash.service.LoginAttemptService;
 import com.carwash.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,6 +30,7 @@ public class MemberServiceImpl implements MemberService {
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate stringRedisTemplate;
     private final MailService mailService;
+    private final LoginAttemptService loginAttemptService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -48,14 +50,17 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional(readOnly = true)
     public Member login(String username, String rawPassword) {
-        Member member = memberRepository.findByUsername(username)
-                .orElseThrow(() -> new BusinessException("帳號或密碼錯誤"));
-        if (!passwordEncoder.matches(rawPassword, member.getPassword())) {
+        loginAttemptService.checkNotLocked(LoginAttemptService.SCOPE_MEMBER, username);
+        Member member = memberRepository.findByUsername(username).orElse(null);
+        // 帳號不存在也要計次，否則可以靠「有沒有被鎖」來探測帳號是否存在
+        if (member == null || !passwordEncoder.matches(rawPassword, member.getPassword())) {
+            loginAttemptService.recordFailure(LoginAttemptService.SCOPE_MEMBER, username);
             throw new BusinessException("帳號或密碼錯誤");
         }
         if (member.getStatus() == 0) {
             throw new BusinessException("此帳號已被停用");
         }
+        loginAttemptService.reset(LoginAttemptService.SCOPE_MEMBER, username);
         return member;
     }
 

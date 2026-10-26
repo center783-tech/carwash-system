@@ -8,6 +8,8 @@ import com.carwash.controller.dto.CouponResponse;
 import com.carwash.controller.dto.MemberCouponResponse;
 import com.carwash.entity.Coupon;
 import com.carwash.response.ApiResponse;
+import com.carwash.security.AccessGuard;
+import com.carwash.security.UserPrincipal;
 import com.carwash.entity.MemberCoupon;
 import com.carwash.service.CouponService;
 import com.carwash.service.MailService;
@@ -17,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -109,7 +112,9 @@ public class CouponController {
 
     /** 會員到店出示優惠券：開始 10 分鐘倒數，時間到自動變成已使用 */
     @PostMapping("/member-coupons/{memberCouponId}/redeem")
-    public ApiResponse<MemberCouponResponse> redeem(@PathVariable Long memberCouponId, @RequestParam Long memberId) {
+    public ApiResponse<MemberCouponResponse> redeem(@PathVariable Long memberCouponId, @RequestParam Long memberId,
+                                                    @AuthenticationPrincipal UserPrincipal principal) {
+        AccessGuard.requireSelf(memberId, principal);
         return ApiResponse.success(MemberCouponResponse.from(couponService.startRedeem(memberCouponId, memberId)));
     }
 
@@ -122,7 +127,9 @@ public class CouponController {
     }
 
     @GetMapping("/member/{memberId}")
-    public ApiResponse<List<MemberCouponResponse>> listMemberCoupons(@PathVariable Long memberId) {
+    public ApiResponse<List<MemberCouponResponse>> listMemberCoupons(@PathVariable Long memberId,
+                                                                     @AuthenticationPrincipal UserPrincipal principal) {
+        AccessGuard.requireSelfOrStaff(memberId, principal);
         return ApiResponse.success(couponService.listMemberCoupons(memberId).stream()
                 .map(MemberCouponResponse::from).collect(Collectors.toList()));
     }

@@ -57,6 +57,7 @@ public final class RedisKeyConstants {
     public static final long SERVICE_LIST_TTL_SECONDS = 600;       // 10 分鐘
     public static final long EMPLOYEE_SCHEDULE_TTL_SECONDS = 300;  // 5 分鐘
     public static final long LOGIN_FAIL_COUNT_TTL_SECONDS = 900;   // 15 分鐘
+    public static final int LOGIN_MAX_FAILS = 5;                   // 時間窗內失敗達此次數即鎖定
     public static final long PASSWORD_CODE_TTL_SECONDS = 300;      // 驗證碼 5 分鐘有效
     public static final long PASSWORD_CODE_COOLDOWN_SECONDS = 60;  // 同一會員 60 秒內不可重寄
     public static final int PASSWORD_CODE_MAX_FAILS = 5;           // 驗證碼錯誤超過次數即作廢

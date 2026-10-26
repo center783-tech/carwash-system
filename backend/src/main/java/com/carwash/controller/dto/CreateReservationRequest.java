@@ -9,7 +9,7 @@ import java.time.LocalTime;
 @Data
 public class CreateReservationRequest {
 
-    @NotNull
+    /** 會員預約時會被忽略（一律以登入者為準）；後台代客預約時必填 */
     private Long memberId;
 
     @NotNull

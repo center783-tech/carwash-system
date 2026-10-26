@@ -3,6 +3,7 @@ package com.carwash.controller;
 import com.carwash.controller.dto.*;
 import com.carwash.entity.Member;
 import com.carwash.response.ApiResponse;
+import com.carwash.security.AccessGuard;
 import com.carwash.security.JwtTokenProvider;
 import com.carwash.security.UserPrincipal;
 import com.carwash.exception.BusinessException;
@@ -42,12 +43,15 @@ public class MemberController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<MemberResponse> getById(@PathVariable Long id) {
+    public ApiResponse<MemberResponse> getById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        AccessGuard.requireSelfOrStaff(id, principal);
         return ApiResponse.success(MemberResponse.from(memberService.getById(id)));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<MemberResponse> updateProfile(@PathVariable Long id, @RequestBody UpdateProfileRequest req) {
+    public ApiResponse<MemberResponse> updateProfile(@PathVariable Long id, @RequestBody UpdateProfileRequest req,
+                                                   @AuthenticationPrincipal UserPrincipal principal) {
+        AccessGuard.requireSelf(id, principal);
         Member updates = Member.builder()
                 .realName(req.getRealName())
                 .phone(req.getPhone())

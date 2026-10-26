@@ -24,13 +24,18 @@ public class JwtTokenProvider {
     @Value("${jwt.expiration-ms}")
     private long expirationMs;
 
+    /** 後台帳號（ADMIN / STAFF）權限較大，token 有效期比會員短 */
+    @Value("${jwt.admin-expiration-ms:28800000}")
+    private long adminExpirationMs;
+
     private SecretKey signingKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
     public String generateToken(UserPrincipal principal) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + expirationMs);
+        long ttl = SecurityConstants.ROLE_MEMBER.equals(principal.getRole()) ? expirationMs : adminExpirationMs;
+        Date expiry = new Date(now.getTime() + ttl);
 
         return Jwts.builder()
                 .subject(principal.getUsername())

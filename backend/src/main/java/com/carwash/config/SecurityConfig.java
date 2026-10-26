@@ -4,6 +4,7 @@ import com.carwash.security.JwtAccessDeniedHandler;
 import com.carwash.security.JwtAuthenticationEntryPoint;
 import com.carwash.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -29,6 +30,10 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+
+    /** 允許跨來源呼叫的前端網域（逗號分隔），由 app.cors.allowed-origins / CORS_ALLOWED_ORIGINS 設定 */
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
 
     /** 不需要登入即可存取的公開端點 */
     private static final String[] PUBLIC_ENDPOINTS = {
@@ -64,6 +69,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/payments/reservations/*/cash/collect").hasAnyRole("ADMIN", "STAFF")
                         // 後台管理相關端點僅限 ADMIN / STAFF
                         .requestMatchers("/api/admin/**", "/api/employees/**").hasAnyRole("ADMIN", "STAFF")
+                        // 預約的確認／完成是後台作業；跨會員的日期區間查詢會洩漏所有人的預約
+                        .requestMatchers(HttpMethod.PUT, "/api/reservations/*/confirm", "/api/reservations/*/complete").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.GET, "/api/reservations/by-date-range").hasAnyRole("ADMIN", "STAFF")
+                        // 建立優惠券與發放只有後台能做，否則會員可以自己印券、發券給自己
+                        .requestMatchers(HttpMethod.POST, "/api/coupons", "/api/coupons/*/issue", "/api/coupons/*/issue-batch").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/services/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.PUT, "/api/services/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.DELETE, "/api/services/**").hasAnyRole("ADMIN", "STAFF")
@@ -80,9 +90,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*")); // 正式環境請改成白名單網域
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

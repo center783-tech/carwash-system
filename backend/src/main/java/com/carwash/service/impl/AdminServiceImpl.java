@@ -4,6 +4,7 @@ import com.carwash.entity.Admin;
 import com.carwash.exception.BusinessException;
 import com.carwash.repository.AdminRepository;
 import com.carwash.service.AdminService;
+import com.carwash.service.LoginAttemptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,17 +17,21 @@ public class AdminServiceImpl implements AdminService {
 
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;
 
     @Override
     public Admin login(String username, String rawPassword) {
-        Admin admin = adminRepository.findByUsername(username)
-                .orElseThrow(() -> new BusinessException("帳號或密碼錯誤"));
-        if (!passwordEncoder.matches(rawPassword, admin.getPassword())) {
+        loginAttemptService.checkNotLocked(LoginAttemptService.SCOPE_ADMIN, username);
+        Admin admin = adminRepository.findByUsername(username).orElse(null);
+        // 帳號不存在也要計次，否則可以靠「有沒有被鎖」來探測帳號是否存在
+        if (admin == null || !passwordEncoder.matches(rawPassword, admin.getPassword())) {
+            loginAttemptService.recordFailure(LoginAttemptService.SCOPE_ADMIN, username);
             throw new BusinessException("帳號或密碼錯誤");
         }
         if (admin.getStatus() == 0) {
             throw new BusinessException("此帳號已被停用");
         }
+        loginAttemptService.reset(LoginAttemptService.SCOPE_ADMIN, username);
         return admin;
     }
 }
