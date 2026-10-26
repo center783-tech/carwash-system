@@ -1,0 +1,15 @@
+# 這些不需要（或不能）送進 Docker 建置環境
+target/
+.env
+.env.*
+!.env.example
+.mvn/
+mvnw
+mvnw.cmd
+.vscode/
+.idea/
+.github/
+note/
+HELP.md
+compose.yaml
+*.log

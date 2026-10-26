@@ -102,6 +102,12 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true, hideNavBar: true }
   },
   {
+    path: '/admin/reports',
+    name: 'AdminReportManage',
+    component: () => import('@/views/admin/ReportManage.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, adminOnly: true, hideNavBar: true }
+  },
+  {
     path: '/admin/closed-dates',
     name: 'AdminClosedDateManage',
     component: () => import('@/views/admin/ClosedDateManage.vue'),
@@ -122,6 +128,10 @@ router.beforeEach((to) => {
   }
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
     return { name: 'AdminLogin' }
+  }
+  // 財務報表只有 ADMIN 能看，STAFF 回到總覽（後端也會擋，這裡只是讓畫面不要停在 403）
+  if (to.meta.adminOnly && authStore.role !== 'ADMIN') {
+    return { name: 'AdminDashboard' }
   }
   return true
 })

@@ -68,6 +68,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/payments/callback/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/payments/reservations/*/cash/collect").hasAnyRole("ADMIN", "STAFF")
                         // 後台管理相關端點僅限 ADMIN / STAFF
+                        // 營收報表涉及財務數字，只開放給 ADMIN，STAFF 不行（必須放在 /api/admin/** 之前）
+                        .requestMatchers("/api/admin/reports/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**", "/api/employees/**").hasAnyRole("ADMIN", "STAFF")
                         // 預約的確認／完成是後台作業；跨會員的日期區間查詢會洩漏所有人的預約
                         .requestMatchers(HttpMethod.PUT, "/api/reservations/*/confirm", "/api/reservations/*/complete").hasAnyRole("ADMIN", "STAFF")

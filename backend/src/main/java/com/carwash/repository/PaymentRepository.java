@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,13 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByTransactionNo(String transactionNo);
 
     Optional<Payment> findByMerchantOrderNo(String merchantOrderNo);
+
+    /** 付款時間落在 [from, to) 的付款單（報表用），一併載入預約與服務項目避免 N+1 */
+    @Query("select p from Payment p join fetch p.reservation r join fetch r.serviceItem "
+            + "where p.paymentStatus in :statuses and p.paidAt >= :from and p.paidAt < :to")
+    List<Payment> findSettledBetween(@Param("statuses") Collection<PaymentStatus> statuses,
+                                     @Param("from") LocalDateTime from,
+                                     @Param("to") LocalDateTime to);
 
     /** 某會員在指定時間範圍內、仍未付款的金流付款單（供補查交易狀態） */
     @Query("select p from Payment p where p.reservation.member.id = :memberId "

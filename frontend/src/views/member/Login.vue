@@ -1,18 +1,7 @@
 <template>
   <div class="auth-page">
-    <div class="auth-art" aria-hidden="true">
-      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="100" cy="100" r="92" fill="none" stroke="#2a4350" stroke-width="2" />
-        <g fill="#3fb3c2">
-          <ellipse cx="70" cy="60" rx="5" ry="9" />
-          <ellipse cx="130" cy="50" rx="4" ry="7" />
-          <ellipse cx="150" cy="90" rx="5" ry="9" />
-        </g>
-        <g fill="#e8a33d" opacity="0.85">
-          <circle cx="55" cy="120" r="6" />
-          <circle cx="140" cy="140" r="4" />
-        </g>
-      </svg>
+    <div class="auth-art">
+      <CarWashScene />
     </div>
 
     <el-card class="auth-card">
@@ -41,6 +30,7 @@ import { reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login } from '@/api/member'
+import CarWashScene from '@/components/CarWashScene.vue'
 import { useAuthStore } from '@/store/auth'
 
 const router = useRouter()
@@ -74,11 +64,8 @@ async function handleLogin() {
   padding: 0 24px;
 }
 .auth-art {
-  width: 180px;
+  width: 420px;
   flex-shrink: 0;
-}
-.auth-art svg {
-  width: 100%;
 }
 .auth-card {
   width: 360px;
@@ -97,7 +84,7 @@ async function handleLogin() {
   text-align: center;
   font-size: 14px;
 }
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .auth-art { display: none; }
 }
 </style>

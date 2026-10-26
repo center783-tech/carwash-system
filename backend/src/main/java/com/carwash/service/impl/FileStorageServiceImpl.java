@@ -20,8 +20,9 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private final MinioClient minioClient;
 
-    @Value("${minio.endpoint}")
-    private String endpoint;
+    // 對外公開的圖片網址前綴（預設等於 minio.endpoint，Docker 部署時為 /files）
+    @Value("${minio.public-url}")
+    private String publicUrl;
 
     @Override
     public String uploadServiceImage(MultipartFile file) {
@@ -66,7 +67,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public void delete(String objectUrl) {
         try {
-            String base = endpoint.endsWith("/") ? endpoint : endpoint + "/";
+            String base = publicUrl.endsWith("/") ? publicUrl : publicUrl + "/";
             if (!objectUrl.startsWith(base)) {
                 throw new BusinessException("無效的檔案網址");
             }
@@ -139,7 +140,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     private String buildPublicUrl(String bucket, String objectName) {
-        String base = endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
+        String base = publicUrl.endsWith("/") ? publicUrl.substring(0, publicUrl.length() - 1) : publicUrl;
         return base + "/" + bucket + "/" + objectName;
     }
 }

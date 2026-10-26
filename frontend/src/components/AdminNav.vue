@@ -23,6 +23,7 @@
           <router-link to="/admin/zones">車位管理</router-link>
           <router-link to="/admin/closed-dates">休息日</router-link>
           <router-link to="/admin/coupons">優惠券</router-link>
+          <router-link v-if="authStore.role === 'ADMIN'" to="/admin/reports">營收報表</router-link>
         </nav>
 
         <el-button size="large" class="menu__btn" @click="handleLogout">登出</el-button>
