@@ -36,7 +36,7 @@ public class CouponController {
     private final MailService mailService;
 
     /** 前端網址，通知信裡的連結用；正式環境請設定 APP_BASE_URL */
-    @Value("${app.base-url:http://localhost:5174/carwash}")
+    @Value("${app.base-url:http://localhost:5300/carwash}")
     private String appBaseUrl;
 
     @PostMapping

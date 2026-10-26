@@ -52,7 +52,7 @@ jwt:
 
 app:
   cors:
-    allowed-origins: http://localhost:5174
+    allowed-origins: http://localhost:5300
 
 springdoc:
   api-docs:

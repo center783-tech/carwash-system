@@ -31,7 +31,7 @@ public class PaymentController {
     private final NewebPayService newebPayService;
 
     /** 付款完成後把使用者導回前端的預約列表 */
-    @Value("${app.base-url:http://localhost:5174/carwash}")
+    @Value("${app.base-url:http://localhost:5300/carwash}")
     private String appBaseUrl;
 
     @PostMapping

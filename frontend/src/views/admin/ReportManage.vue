@@ -9,7 +9,7 @@
           <p class="range">{{ rangeText }}</p>
         </div>
         <div class="head__actions no-print">
-          <el-button @click="exportCsv" :disabled="!report">匯出 CSV</el-button>
+          <el-button @click="exportExcel" :disabled="!report">匯出 Excel</el-button>
           <el-button @click="printPage" :disabled="!report">列印／存成 PDF</el-button>
         </div>
       </header>
@@ -300,49 +300,85 @@ function goToday() {
 
 // ---------------------------------------------------------------- 匯出
 
-// 後台自訂的名稱可能以 = + - @ 開頭，Excel 會當成公式執行，開頭補一個單引號
-function csvCell(v) {
-  let s = String(v ?? '')
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s
-  return `"${s.replaceAll('"', '""')}"`
-}
+// 項目（標籤）欄位用淺灰底，資訊欄位保持白底，格線用很淡的灰
+const LABEL_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF1F2' } }
+const THIN = { style: 'thin', color: { argb: 'FFD9DEE0' } }
+const BORDER = { top: THIN, left: THIN, bottom: THIN, right: THIN }
+const MONEY_FMT = '"NT$" #,##0'
 
-function exportCsv() {
+// 匯出時才載入 exceljs（約 1MB），不拖慢一般頁面
+async function exportExcel() {
   const r = report.value
-  const rows = [
-    ['洗享快 營收報表'],
-    ['統計區間', periodLabel.value, rangeText.value],
-    [],
-    ['總覽'],
-    ['營收', r.summary.revenue],
-    ['付款筆數', r.summary.paymentCount],
-    ['平均客單價', r.summary.averageOrderValue],
-    ['已退款金額', r.summary.refundAmount],
-    ['已退款筆數', r.summary.refundCount],
-    ['上一期營收', r.summary.previousRevenue],
-    ['成長率(%)', r.summary.growthRate ?? ''],
-    ['預約數', r.reservations.total],
-    ['已完成', r.reservations.completed],
-    ['已取消', r.reservations.cancelled],
-    [],
-    [trendTitle.value],
-    [trendColumn.value, '營收', '筆數'],
-    ...r.trend.map((p) => [p.label, p.revenue, p.count]),
-    [],
-    ['付款方式'],
-    ['方式', '營收', '筆數'],
-    ...r.byMethod.map((m) => [methodName(m.method), m.revenue, m.count]),
-    [],
-    ['服務項目'],
-    ['項目', '營收', '筆數'],
-    ...r.byService.map((s) => [s.name, s.revenue, s.count])
+  const mod = await import('exceljs')
+  const ExcelJS = mod.default ?? mod
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('營收報表', { views: [{ showGridLines: false }] })
+  ws.columns = [{ width: 22 }, { width: 20 }, { width: 12 }]
+
+  const styleRow = (row, { label = false, header = false, fmts = [] } = {}) => {
+    row.eachCell({ includeEmpty: false }, (cell, col) => {
+      cell.border = BORDER
+      cell.alignment = { vertical: 'middle', horizontal: col === 1 ? 'left' : 'right' }
+      if (label && col === 1) {
+        cell.fill = LABEL_FILL
+        cell.font = { bold: true }
+      }
+      if (header) {
+        cell.fill = LABEL_FILL
+        cell.font = { bold: true }
+      }
+      if (!header && fmts[col - 1]) cell.numFmt = fmts[col - 1]
+    })
+  }
+
+  const title = ws.addRow(['洗享快 營收報表'])
+  title.font = { bold: true, size: 16 }
+  ws.addRow([`統計區間：${periodLabel.value}　${rangeText.value}`]).font = { color: { argb: 'FF6B7780' } }
+  ws.addRow([])
+
+  const block = (name, rows, opts) => {
+    ws.addRow([name]).font = { bold: true, size: 13 }
+    rows.forEach((values, i) => {
+      const row = ws.addRow(values)
+      styleRow(row, { ...opts, header: opts.header && i === 0 })
+    })
+    ws.addRow([])
+  }
+
+  // 總覽：左欄是項目（淺灰），右欄是數值（白底）
+  const money = [null, MONEY_FMT]
+  const count = [null, '#,##0']
+  ws.addRow(['總覽']).font = { bold: true, size: 13 }
+  const summary = [
+    ['營收', Number(r.summary.revenue), money],
+    ['付款筆數', r.summary.paymentCount, count],
+    ['平均客單價', Number(r.summary.averageOrderValue), money],
+    ['已退款金額', Number(r.summary.refundAmount), money],
+    ['已退款筆數', r.summary.refundCount, count],
+    ['上一期營收', Number(r.summary.previousRevenue), money],
+    ['成長率', r.summary.growthRate === null ? '—' : `${r.summary.growthRate}%`, []],
+    ['預約數', r.reservations.total, count],
+    ['已完成', r.reservations.completed, count],
+    ['已取消', r.reservations.cancelled, count]
   ]
-  // 開頭加 BOM，Excel 才不會把中文開成亂碼
-  const csv = '﻿' + rows.map((row) => row.map(csvCell).join(',')).join('\r\n')
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  summary.forEach(([label, value, fmts]) => styleRow(ws.addRow([label, value]), { label: true, fmts }))
+  ws.addRow([])
+
+  const tableFmts = [null, MONEY_FMT, '#,##0']
+  block(trendTitle.value, [[trendColumn.value, '營收', '筆數'], ...r.trend.map((x) => [x.label, Number(x.revenue), x.count])],
+    { header: true, fmts: tableFmts })
+  block('付款方式', [['方式', '營收', '筆數'], ...r.byMethod.map((x) => [methodName(x.method), Number(x.revenue), x.count])],
+    { header: true, fmts: tableFmts })
+  block('服務項目', [['項目', '營收', '筆數'], ...r.byService.map((x) => [x.name, Number(x.revenue), x.count])],
+    { header: true, fmts: tableFmts })
+
+  const buffer = await wb.xlsx.writeBuffer()
+  const url = URL.createObjectURL(
+    new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  )
   const a = document.createElement('a')
   a.href = url
-  a.download = `營收報表_${period.value}_${r.startDate}.csv`
+  a.download = `營收報表_${period.value}_${r.startDate}.xlsx`
   a.click()
   URL.revokeObjectURL(url)
 }
