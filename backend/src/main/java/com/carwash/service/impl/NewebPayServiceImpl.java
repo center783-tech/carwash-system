@@ -123,6 +123,8 @@ public class NewebPayServiceImpl implements NewebPayService {
         params.put("ItemDesc", reservation.getServiceItem().getName());
         params.put("ReturnURL", props.getReturnUrl());
         params.put("NotifyURL", props.getNotifyUrl());
+        // 藍新付款／取號結果頁的「返回商店」按鈕；ATM 取號後使用者要留在藍新頁抄帳號，所以不用 CustomerURL 自動導回
+        params.put("ClientBackURL", props.getReturnUrl());
         params.put("LoginType", "0");
         if (method == PaymentMethod.ATM) {
             params.put("VACC", "1");
