@@ -24,6 +24,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -124,6 +125,53 @@ class NewebPayServiceImplTest {
         service.handleNotify(notifyBody(SUCCESS_JSON, null));
 
         assertThat(payment.getReservation().getStatus()).isEqualTo(ReservationStatus.PENDING);
+    }
+
+    @Test
+    void notify_success_voidsUnpaidCashPayment() throws Exception {
+        Payment payment = pendingPayment();
+        Payment cash = Payment.builder().id(8L).reservation(payment.getReservation()).amount(payment.getAmount())
+                .paymentMethod(PaymentMethod.CASH).paymentStatus(PaymentStatus.UNPAID).build();
+        when(paymentRepository.findByReservationId(1L)).thenReturn(List.of(cash, payment));
+
+        service.handleNotify(notifyBody(SUCCESS_JSON, null));
+
+        assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(cash.getPaymentStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getReservation().getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+    }
+
+    @Test
+    void notify_cardPaidAfterCashCollected_isRefundedAutomatically() throws Exception {
+        Payment payment = pendingPayment();
+        payment.getReservation().setStatus(ReservationStatus.CONFIRMED);
+        Payment cash = Payment.builder().id(8L).reservation(payment.getReservation()).amount(payment.getAmount())
+                .paymentMethod(PaymentMethod.CASH).paymentStatus(PaymentStatus.PAID).build();
+        when(paymentRepository.findByReservationId(1L)).thenReturn(List.of(cash, payment));
+        NewebPayServiceImpl spied = spy(service);
+        doNothing().when(spied).refundCreditCard(any());
+
+        spied.handleNotify(notifyBody(SUCCESS_JSON, null));
+
+        verify(spied).refundCreditCard(payment);
+        assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        assertThat(cash.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(payment.getReservation().getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+    }
+
+    @Test
+    void notify_duplicateRefundFails_keepsPaidForManualRefund() throws Exception {
+        Payment payment = pendingPayment();
+        Payment cash = Payment.builder().id(8L).reservation(payment.getReservation()).amount(payment.getAmount())
+                .paymentMethod(PaymentMethod.CASH).paymentStatus(PaymentStatus.PAID).build();
+        when(paymentRepository.findByReservationId(1L)).thenReturn(List.of(cash, payment));
+        NewebPayServiceImpl spied = spy(service);
+        doThrow(new BusinessException("退款失敗")).when(spied).refundCreditCard(any());
+
+        // 通知仍要回 200，否則藍新會一直重送
+        spied.handleNotify(notifyBody(SUCCESS_JSON, null));
+
+        assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
     }
 
     @Test

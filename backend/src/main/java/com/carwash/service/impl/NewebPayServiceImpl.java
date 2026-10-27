@@ -181,8 +181,12 @@ public class NewebPayServiceImpl implements NewebPayService {
                 throw new BusinessException("找不到對應的付款單");
             }
 
-            String outcome = applyNotifyResult(payment.getId(), success, result);
-            saveNotification(payment, merchantOrderNo, rawBody, outcome, message);
+            NotifyOutcome outcome = applyNotifyResult(payment.getId(), success, result);
+            String savedMessage = message;
+            if (outcome.duplicate()) {
+                savedMessage = "重複付款：" + resolveDuplicatePayment(payment.getId());
+            }
+            saveNotification(payment, merchantOrderNo, rawBody, outcome.status(), savedMessage);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -223,25 +227,56 @@ public class NewebPayServiceImpl implements NewebPayService {
     }
 
     /** 在單一交易內更新付款單與預約狀態，回傳要記錄的 NotifyStatus */
-    private String applyNotifyResult(Long paymentId, boolean success, JsonNode result) {
+    private NotifyOutcome applyNotifyResult(Long paymentId, boolean success, JsonNode result) {
         return transactionTemplate.execute(tx -> {
             Payment payment = paymentRepository.findById(paymentId).orElseThrow();
             if (payment.getPaymentStatus() == PaymentStatus.PAID) {
-                return NotifyStatus.IGNORED; // 重複通知
+                return new NotifyOutcome(NotifyStatus.IGNORED, false); // 重複通知
             }
             if (!success) {
                 payment.setPaymentStatus(PaymentStatus.FAILED);
                 paymentRepository.save(payment);
-                return NotifyStatus.PROCESSED;
+                return new NotifyOutcome(NotifyStatus.PROCESSED, false);
             }
             // 金額必須與我們自己建立的付款單一致
             if (result.path("Amt").asInt(-1) != toIntAmount(payment.getAmount())) {
                 log.warn("藍新通知金額不符 paymentId={} amt={}", paymentId, result.path("Amt").asText());
-                return NotifyStatus.INVALID;
+                return new NotifyOutcome(NotifyStatus.INVALID, false);
             }
-            markPaid(payment, result.path("TradeNo").asText(null));
-            return NotifyStatus.PROCESSED;
+            boolean duplicate = markPaid(payment, result.path("TradeNo").asText(null));
+            return new NotifyOutcome(NotifyStatus.PROCESSED, duplicate);
         });
+    }
+
+    /** status：要記錄的 NotifyStatus；duplicate：這筆付款成功時，同一預約已經有別筆付款（重複扣款） */
+    private record NotifyOutcome(String status, boolean duplicate) {
+    }
+
+    /**
+     * 重複付款善後（在交易外呼叫，因為退款要打藍新）：信用卡自動退款並標記 REFUNDED；
+     * 其他方式或退款失敗則保留 PAID 並記錄錯誤，讓店家人工退款。回傳處理結果說明。
+     */
+    private String resolveDuplicatePayment(Long paymentId) {
+        Payment payment = paymentRepository.findById(paymentId).orElseThrow();
+        if (payment.getPaymentMethod() == PaymentMethod.CREDIT_CARD) {
+            try {
+                refundCreditCard(payment);
+                transactionTemplate.execute(tx -> {
+                    Payment latest = paymentRepository.findById(paymentId).orElseThrow();
+                    latest.setPaymentStatus(PaymentStatus.REFUNDED);
+                    return paymentRepository.save(latest);
+                });
+                log.warn("預約 {} 重複付款，付款單 {} 已自動退款", payment.getReservation().getId(), paymentId);
+                return "已自動退款";
+            } catch (BusinessException e) {
+                log.error("預約 {} 重複付款，付款單 {} 自動退款失敗，請人工退款：{}",
+                        payment.getReservation().getId(), paymentId, e.getMessage());
+                return "自動退款失敗，需人工退款：" + e.getMessage();
+            }
+        }
+        log.error("預約 {} 重複付款，付款單 {}（{}）無法自動退款，請人工處理",
+                payment.getReservation().getId(), paymentId, payment.getPaymentMethod());
+        return "無法自動退款，需人工處理";
     }
 
     // ------------------------------------------------------------------ 交易查詢
@@ -313,7 +348,9 @@ public class NewebPayServiceImpl implements NewebPayService {
             if (!verifyQueryCheckCode(result)) {
                 throw new BusinessException("藍新查詢結果驗證失敗");
             }
-            syncFromTradeStatus(payment.getId(), tradeStatus, result);
+            if (syncFromTradeStatus(payment.getId(), tradeStatus, result)) {
+                resolveDuplicatePayment(payment.getId());
+            }
         }
 
         // 同一筆交易取最新狀態回傳
@@ -326,21 +363,22 @@ public class NewebPayServiceImpl implements NewebPayService {
     }
 
     /** TradeStatus：0 未付款、1 付款成功、2 付款失敗、3 付款取消、6 已退款 */
-    private void syncFromTradeStatus(Long paymentId, String tradeStatus, JsonNode result) {
-        transactionTemplate.executeWithoutResult(tx -> {
+    private boolean syncFromTradeStatus(Long paymentId, String tradeStatus, JsonNode result) {
+        return Boolean.TRUE.equals(transactionTemplate.execute(tx -> {
             Payment payment = paymentRepository.findById(paymentId).orElseThrow();
             if (payment.getPaymentStatus() != PaymentStatus.UNPAID) {
-                return;
+                return false;
             }
             if ("1".equals(tradeStatus)) {
                 if (result.path("Amt").asInt(-1) == toIntAmount(payment.getAmount())) {
-                    markPaid(payment, result.path("TradeNo").asText(null));
+                    return markPaid(payment, result.path("TradeNo").asText(null));
                 }
             } else if ("2".equals(tradeStatus) || "3".equals(tradeStatus)) {
                 payment.setPaymentStatus(PaymentStatus.FAILED);
                 paymentRepository.save(payment);
             }
-        });
+            return false;
+        }));
     }
 
     /** CheckCode = SHA256("HashIV=..&Amt=..&MerchantID=..&MerchantOrderNo=..&TradeNo=..&HashKey=..") 大寫 */
@@ -415,19 +453,38 @@ public class NewebPayServiceImpl implements NewebPayService {
 
     // ------------------------------------------------------------------ 共用
 
-    /** 必須在交易內呼叫：付款單標記已付款，並把待付款的預約改為已確認 */
-    private void markPaid(Payment payment, String tradeNo) {
+    /**
+     * 必須在交易內呼叫：付款單標記已付款，並把待付款的預約改為已確認，
+     * 同時作廢同預約還沒收款的現場付現單（會員改刷卡後它就不該再存在）。
+     * 若同預約已經有別筆付款成功（例如店家已收現金），這筆是重複扣款：
+     * 仍如實標記 PAID（錢確實被收了），但不動預約，回傳 true 讓呼叫端在交易外退款。
+     */
+    private boolean markPaid(Payment payment, String tradeNo) {
+        Reservation reservation = payment.getReservation();
+        List<Payment> siblings = paymentRepository.findByReservationId(reservation.getId());
+        boolean duplicate = siblings.stream()
+                .anyMatch(p -> !p.getId().equals(payment.getId()) && p.getPaymentStatus() == PaymentStatus.PAID);
+
         payment.setPaymentStatus(PaymentStatus.PAID);
         payment.setPaidAt(LocalDateTime.now());
         payment.setProviderTradeNo(tradeNo);
         payment.setTransactionNo(tradeNo);
         paymentRepository.save(payment);
+        if (duplicate) {
+            return true;
+        }
 
-        Reservation reservation = payment.getReservation();
+        siblings.stream()
+                .filter(p -> p.getPaymentMethod() == PaymentMethod.CASH && p.getPaymentStatus() == PaymentStatus.UNPAID)
+                .forEach(p -> {
+                    p.setPaymentStatus(PaymentStatus.FAILED);
+                    paymentRepository.save(p);
+                });
         if (reservation.getStatus() == ReservationStatus.PENDING) {
             reservation.setStatus(ReservationStatus.CONFIRMED);
             reservationRepository.save(reservation);
         }
+        return false;
     }
 
     private void saveNotification(Payment payment, String merchantOrderNo, String rawBody,
