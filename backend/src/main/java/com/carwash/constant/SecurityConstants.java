@@ -20,4 +20,5 @@ public final class SecurityConstants {
     public static final String ROLE_MEMBER = "MEMBER";
     public static final String ROLE_ADMIN = "ADMIN";
     public static final String ROLE_STAFF = "STAFF";
+    public static final String ROLE_EMPLOYEE = "EMPLOYEE";
 }

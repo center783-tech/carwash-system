@@ -108,6 +108,18 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true, adminOnly: true, hideNavBar: true }
   },
   {
+    path: '/admin/schedule',
+    name: 'AdminMySchedule',
+    component: () => import('@/views/admin/MySchedule.vue'),
+    meta: { requiresAuth: true, requiresBackoffice: true, hideNavBar: true }
+  },
+  {
+    path: '/admin/accounts',
+    name: 'AdminAccountManage',
+    component: () => import('@/views/admin/AccountManage.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, adminOnly: true, hideNavBar: true }
+  },
+  {
     path: '/admin/closed-dates',
     name: 'AdminClosedDateManage',
     component: () => import('@/views/admin/ClosedDateManage.vue'),
@@ -123,10 +135,18 @@ const router = createRouter({
 router.beforeEach((to) => {
   const authStore = useAuthStore()
 
+  const isBackRoute = to.meta.requiresAdmin || to.meta.requiresBackoffice
   if (to.meta.requiresAuth && !authStore.isLoggedIn) {
-    return { name: to.meta.requiresAdmin ? 'AdminLogin' : 'Login', query: { redirect: to.fullPath } }
+    return { name: isBackRoute ? 'AdminLogin' : 'Login', query: { redirect: to.fullPath } }
+  }
+  // 一般員工誤闖其他後台頁面，帶回總班表（後端也會擋）
+  if (to.meta.requiresAdmin && authStore.role === 'EMPLOYEE') {
+    return { name: 'AdminMySchedule' }
   }
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    return { name: 'AdminLogin' }
+  }
+  if (to.meta.requiresBackoffice && !authStore.isBackoffice) {
     return { name: 'AdminLogin' }
   }
   // 財務報表只有 ADMIN 能看，STAFF 回到總覽（後端也會擋，這裡只是讓畫面不要停在 403）

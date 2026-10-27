@@ -35,7 +35,8 @@ async function handleLogin() {
     const result = await adminLogin(form)
     authStore.setAuth(result)
     ElMessage.success('登入成功')
-    router.push('/admin/dashboard')
+    // 一般員工只能看班表，直接進總班表
+    router.push(result.role === 'EMPLOYEE' ? '/admin/schedule' : '/admin/dashboard')
   } finally {
     loading.value = false
   }

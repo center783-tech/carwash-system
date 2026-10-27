@@ -1,6 +1,6 @@
 <template>
   <header ref="navEl" class="admin-nav">
-    <router-link to="/admin/dashboard" class="admin-nav__brand">洗享快．後台</router-link>
+    <router-link :to="authStore.isAdmin ? '/admin/dashboard' : '/admin/schedule'" class="admin-nav__brand">洗享快．後台</router-link>
 
     <div class="admin-nav__spacer" />
 
@@ -17,13 +17,17 @@
         </div>
 
         <nav class="menu__list" @click="menuOpen = false">
-          <router-link to="/admin/reservations">預約管理</router-link>
-          <router-link to="/admin/services">服務項目</router-link>
-          <router-link to="/admin/employees">員工管理</router-link>
-          <router-link to="/admin/zones">車位管理</router-link>
-          <router-link to="/admin/closed-dates">休息日</router-link>
-          <router-link to="/admin/coupons">優惠券</router-link>
-          <router-link v-if="authStore.role === 'ADMIN'" to="/admin/reports">營收報表</router-link>
+          <template v-if="authStore.isAdmin">
+            <router-link to="/admin/reservations">預約管理</router-link>
+            <router-link to="/admin/services">服務項目</router-link>
+            <router-link to="/admin/employees">員工管理</router-link>
+            <router-link to="/admin/zones">車位管理</router-link>
+            <router-link to="/admin/closed-dates">休息日</router-link>
+            <router-link to="/admin/coupons">優惠券</router-link>
+            <router-link v-if="authStore.role === 'ADMIN'" to="/admin/reports">營收報表</router-link>
+            <router-link v-if="authStore.role === 'ADMIN'" to="/admin/accounts">帳號管理</router-link>
+          </template>
+          <router-link v-else to="/admin/schedule">總班表</router-link>
         </nav>
 
         <el-button size="large" class="menu__btn" @click="handleLogout">登出</el-button>

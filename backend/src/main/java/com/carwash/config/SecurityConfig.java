@@ -70,6 +70,10 @@ public class SecurityConfig {
                         // 後台管理相關端點僅限 ADMIN / STAFF
                         // 營收報表涉及財務數字，只開放給 ADMIN，STAFF 不行（必須放在 /api/admin/** 之前）
                         .requestMatchers("/api/admin/reports/**").hasRole("ADMIN")
+                        // 帳號管理（建立後台帳號）只有 ADMIN
+                        .requestMatchers("/api/admin/accounts/**").hasRole("ADMIN")
+                        // EMPLOYEE（一般員工）只開放查看總班表，其他後台端點一律不行
+                        .requestMatchers(HttpMethod.GET, "/api/admin/schedules", "/api/closed-dates").hasAnyRole("ADMIN", "STAFF", "EMPLOYEE", "MEMBER")
                         .requestMatchers("/api/admin/**", "/api/employees/**").hasAnyRole("ADMIN", "STAFF")
                         // 預約的確認／完成是後台作業；跨會員的日期區間查詢會洩漏所有人的預約
                         .requestMatchers(HttpMethod.PUT, "/api/reservations/*/confirm", "/api/reservations/*/complete").hasAnyRole("ADMIN", "STAFF")
@@ -82,8 +86,9 @@ public class SecurityConfig {
                         // 服務項目封面圖只有後台可以上傳；評價附圖/會員大頭照登入即可，走下面的 anyRequest()
                         .requestMatchers(HttpMethod.POST, "/api/files/service-images").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/coupons/**").hasAnyRole("ADMIN", "STAFF", "MEMBER")
-                        // 其餘會員相關端點（預約、付款、評價、車輛）只要登入即可（MEMBER 或 ADMIN）
-                        .anyRequest().authenticated())
+                        // 其餘會員相關端點（預約、付款、評價、車輛）；明確排除 EMPLOYEE，
+                        // 否則一般員工的 id 會被會員端 API 當成 memberId 使用
+                        .anyRequest().hasAnyRole("ADMIN", "STAFF", "MEMBER"))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

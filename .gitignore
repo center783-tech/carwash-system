@@ -1,2 +1,5 @@
 # Docker Compose 用的環境變數（含密碼）
 .env
+
+# 部署筆記(含主機 IP 與金鑰路徑),不要公開
+backend/note/open.txt
