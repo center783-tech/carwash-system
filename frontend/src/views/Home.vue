@@ -63,6 +63,9 @@
       </div>
     </section>
 
+    <!-- ===== 天氣（Open-Meteo） ===== -->
+    <WeatherStrip />
+
     <!-- ===== 熱門服務 ===== -->
     <section class="section">
       <div class="section__head reveal">
@@ -172,6 +175,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import CarWashScene from '@/components/CarWashScene.vue'
 import ServiceIcon from '@/components/ServiceIcon.vue'
+import WeatherStrip from '@/components/WeatherStrip.vue'
 import { listServices } from '@/api/service'
 import { useAuthStore } from '@/store/auth'
 
