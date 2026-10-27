@@ -1,5 +1,5 @@
 <template>
-  <section v-if="days.length" class="weather reveal">
+  <section v-if="days.length" class="weather">
     <div class="weather__now">
       <span class="weather__icon" aria-hidden="true">{{ days[0].icon }}</span>
       <div>
