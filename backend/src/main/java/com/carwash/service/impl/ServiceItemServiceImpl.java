@@ -106,7 +106,7 @@ public class ServiceItemServiceImpl implements ServiceItemService {
 
     @Override
     public List<Long> bundleItemIds(ServiceItem item) {
-        if (!Boolean.TRUE.equals(item.getBundle()) || item.getBundleItemIds() == null
+        if (!Integer.valueOf(1).equals(item.getBundle()) || item.getBundleItemIds() == null
                 || item.getBundleItemIds().isBlank()) {
             return List.of();
         }
@@ -133,8 +133,8 @@ public class ServiceItemServiceImpl implements ServiceItemService {
      * 服務時長由各單項加總（預約時段長度依此計算），非組合則清掉組合欄位。
      */
     private void applyBundleRules(ServiceItem item, Long selfId) {
-        if (!Boolean.TRUE.equals(item.getBundle())) {
-            item.setBundle(false);
+        if (!Integer.valueOf(1).equals(item.getBundle())) {
+            item.setBundle(0);
             item.setBundleItemIds(null);
             return;
         }
@@ -149,7 +149,7 @@ public class ServiceItemServiceImpl implements ServiceItemService {
         if (children.size() != ids.size()) {
             throw new BusinessException("組合內有不存在的服務項目");
         }
-        if (children.stream().anyMatch(c -> Boolean.TRUE.equals(c.getBundle()))) {
+        if (children.stream().anyMatch(c -> Integer.valueOf(1).equals(c.getBundle()))) {
             throw new BusinessException("組合內不能再包含其他組合");
         }
         item.setBundleItemIds(ids.stream().map(String::valueOf).collect(Collectors.joining(",")));

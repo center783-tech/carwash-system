@@ -34,7 +34,7 @@ public class ServiceItemResponse {
                 item.getCategory(),
                 item.getImageUrl(),
                 item.getStatus(),
-                Boolean.TRUE.equals(item.getBundle()),
+                Integer.valueOf(1).equals(item.getBundle()),
                 bundleItemIds,
                 originalPrice
         );

@@ -57,7 +57,7 @@ public class ServiceItem {
     /** 是否為組合優惠；組合的 price 是優惠價，時長為各單項加總 */
     @Column(name = "is_bundle", nullable = false)
     @Builder.Default
-    private Boolean bundle = false;
+    private Integer bundle = 0;
 
     /** 組合包含的單項服務 id，逗號分隔（例如 "1,3,4"）；非組合為 null */
     @Column(name = "bundle_item_ids", length = 255)

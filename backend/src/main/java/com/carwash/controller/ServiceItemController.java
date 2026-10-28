@@ -66,7 +66,7 @@ public class ServiceItemController {
                 .category(req.getCategory())
                 .imageUrl(req.getImageUrl())
                 .status(req.getStatus())
-                .bundle(Boolean.TRUE.equals(req.getBundle()))
+                .bundle(Boolean.TRUE.equals(req.getBundle()) ? 1 : 0)
                 .bundleItemIds(req.getBundleItemIds() == null ? null
                         : req.getBundleItemIds().stream().map(String::valueOf).collect(Collectors.joining(",")))
                 .build();
