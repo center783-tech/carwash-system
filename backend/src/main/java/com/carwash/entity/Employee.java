@@ -33,6 +33,10 @@ public class Employee {
     @Column(length = 20)
     private String phone;
 
+    /** 職稱（選填），班表依職稱分組顯示；沒填就不分組、不顯示 */
+    @Column(length = 30)
+    private String title;
+
     @Column(nullable = false)
     @Builder.Default
     private Integer status = 1;

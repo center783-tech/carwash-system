@@ -18,28 +18,67 @@
       <el-button size="small" @click="shift(1)">{{ viewMode === 'week' ? '下一週' : '下個月' }} ›</el-button>
     </div>
 
-    <!-- ========== 週檢視 ========== -->
-    <div v-if="viewMode === 'week'" v-loading="loading" class="grid">
-      <div class="grid__head">
-        <span>日期</span>
-        <span class="head--AM">上午班<small>08:00–12:00</small></span>
-        <span class="head--PM">下午班<small>13:00–17:00</small></span>
-      </div>
-      <div v-for="d in weekDays" :key="d.date" class="grid__row" :class="{ 'grid__row--today': d.today }">
-        <div class="grid__date">
-          <strong>{{ d.label }}</strong>
-          <span>週{{ d.weekday }}</span>
-          <el-tag v-if="d.closed" type="info" size="small">休息日</el-tag>
+    <!-- ========== 週檢視：人員 × 日期 ========== -->
+    <div v-if="viewMode === 'week'" v-loading="loading" class="roster-wrap">
+      <div class="roster">
+        <!-- 日期表頭 -->
+        <div class="r-row r-row--head">
+          <div class="r-name r-corner">人員</div>
+          <div v-for="d in weekDays" :key="d.date" class="r-cell r-day" :class="{ 'r-day--today': d.today, 'r-day--closed': d.closed }">
+            <strong>{{ d.label }}</strong> 週{{ d.weekday }}
+            <el-tag v-if="d.closed" type="info" size="small">休息日</el-tag>
+          </div>
         </div>
-        <div v-for="sh in SHIFT_KEYS" :key="sh" class="slot" :class="[slotClass(d, sh), `shift--${sh}`]">
-          <span v-for="n in working(d.date, sh)" :key="n.id" class="chip" :style="chipStyle(n)">
-            <i class="chip__avatar">{{ initial(n) }}</i>{{ n.employeeName }}
-          </span>
-          <span v-for="n in onLeave(d.date, sh)" :key="n.id" class="chip chip--leave">
-            <i class="chip__avatar">{{ initial(n) }}</i>{{ n.employeeName }}<em>請假</em>
-          </span>
-          <span v-if="!working(d.date, sh).length" class="slot__empty">{{ emptyText(d) }}</span>
+        <!-- 每日統計：上班人數、總工時；有班別沒人時紅字警示 -->
+        <div class="r-row r-row--stat">
+          <div class="r-name r-corner">統計</div>
+          <div v-for="d in weekDays" :key="d.date" class="r-cell r-stat">
+            <template v-if="d.closed">—</template>
+            <template v-else>
+              <span><b>{{ dayStat(d.date).people }}</b> 人</span>
+              <span class="r-stat__hours">{{ dayStat(d.date).hours }} 小時</span>
+              <span v-for="sh in gapShifts(d)" :key="sh" class="r-stat__gap">⚠ {{ SHIFT_LABEL[sh] }}無人</span>
+            </template>
+          </div>
         </div>
+
+        <template v-for="g in rosterGroups" :key="g.key">
+          <!-- 職稱分組標題（只有真的有人設定職稱時才會出現） -->
+          <div v-if="g.title" class="r-row r-row--group" :style="g.style">
+            <div class="r-name r-group__name">{{ g.title }}<small>{{ g.rows.length }} 人</small></div>
+            <div v-for="d in weekDays" :key="d.date" class="r-cell r-group__count">
+              {{ d.closed ? '' : groupCount(g, d.date) }}
+            </div>
+          </div>
+
+          <div v-for="emp in g.rows" :key="emp.id" class="r-row r-row--emp">
+            <div class="r-name">
+              <span class="r-name__text">{{ emp.name }}</span>
+              <span v-if="emp.title" class="r-badge" :style="g.style">{{ emp.title }}</span>
+            </div>
+            <div
+                v-for="d in weekDays"
+                :key="d.date"
+                class="r-cell r-slot"
+                :class="{ 'r-slot--today': d.today, 'r-slot--closed': d.closed }"
+            >
+              <template v-if="shiftsOf(emp.id, d.date).length">
+                <div
+                    v-for="s in shiftsOf(emp.id, d.date)"
+                    :key="s.id"
+                    class="r-shift"
+                    :class="[`shift--${shiftKeyOf(s)}`, { 'r-shift--leave': s.status === 0 }]"
+                >
+                  <strong>{{ s.status === 0 ? '請假' : SHIFT_LABEL[shiftKeyOf(s)] }}</strong>
+                  <span>{{ s.startTime.slice(0, 5) }}–{{ s.endTime.slice(0, 5) }}</span>
+                </div>
+              </template>
+              <span v-else-if="d.closed" class="r-off">休息日</span>
+            </div>
+          </div>
+        </template>
+
+        <div v-if="!loading && !rosterGroups.length" class="r-empty">這段期間沒有排班資料</div>
       </div>
     </div>
 
@@ -101,8 +140,11 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { listScheduleOverview } from '@/api/employee'
+import { listScheduleOverview, listEmployees } from '@/api/employee'
 import { listClosedDates } from '@/api/zone'
+import { useAuthStore } from '@/store/auth'
+
+const authStore = useAuthStore()
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const SHIFT_KEYS = ['AM', 'PM']
@@ -200,6 +242,70 @@ function inSlot(date, shift) {
 const working = (date, shift) => inSlot(date, shift).filter((s) => s.status === 1)
 const onLeave = (date, shift) => inSlot(date, shift).filter((s) => s.status === 0)
 
+/* ---------- 週檢視：人員 × 日期 ---------- */
+const employees = ref([]) // 在職員工（EMPLOYEE 角色打不到員工 API 時為空，只顯示有排班的人）
+
+// 職稱分組配色：依分組順序輪流取色，只用在有人設定的職稱上
+const GROUP_PALETTE = [
+  { bg: '#fde2e4', fg: '#9b2c3a', line: '#f5b5bd' },
+  { bg: '#fff3d6', fg: '#8a5a00', line: '#f0d08a' },
+  { bg: '#dce8fb', fg: '#2d4f8e', line: '#aac3ee' },
+  { bg: '#dff1e8', fg: '#2a6a4a', line: '#a9d8c0' },
+  { bg: '#f3e1f7', fg: '#7a3a8c', line: '#d9b0e3' },
+  { bg: '#e0f0f2', fg: '#1c6470', line: '#a8d3d9' }
+]
+const UNTITLED_STYLE = { '--g-bg': '#eceff1', '--g-fg': '#5a666e', '--g-line': '#cfd6da' }
+const groupStyle = (i) => ({
+  '--g-bg': GROUP_PALETTE[i % GROUP_PALETTE.length].bg,
+  '--g-fg': GROUP_PALETTE[i % GROUP_PALETTE.length].fg,
+  '--g-line': GROUP_PALETTE[i % GROUP_PALETTE.length].line
+})
+
+// 這一週要列出的人：在職員工 + 這週有排班的人（姓名、職稱以員工資料為準）
+const rosterPeople = computed(() => {
+  const map = new Map()
+  employees.value.forEach((e) => map.set(e.id, { id: e.id, name: e.name, title: e.title || '' }))
+  schedules.value.forEach((s) => {
+    if (!map.has(s.employeeId)) {
+      map.set(s.employeeId, { id: s.employeeId, name: s.employeeName, title: s.employeeTitle || '' })
+    }
+  })
+  return [...map.values()].sort((a, b) => a.id - b.id)
+})
+
+// 有人設定職稱才分組；沒人設定職稱時整張表不出現任何職稱標題或標籤
+const rosterGroups = computed(() => {
+  const people = rosterPeople.value
+  if (!people.length) return []
+  const titles = [...new Set(people.map((p) => p.title).filter(Boolean))]
+  if (!titles.length) return [{ key: '_all', title: '', style: UNTITLED_STYLE, rows: people }]
+  const groups = titles.map((t, i) => ({
+    key: t,
+    title: t,
+    style: groupStyle(i),
+    rows: people.filter((p) => p.title === t)
+  }))
+  const rest = people.filter((p) => !p.title)
+  if (rest.length) groups.push({ key: '_none', title: '未設定職稱', style: UNTITLED_STYLE, rows: rest })
+  return groups
+})
+
+const shiftsOf = (empId, date) =>
+  schedules.value
+    .filter((s) => s.employeeId === empId && s.workDate === date)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+
+const toMinutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
+function dayStat(date) {
+  const list = schedules.value.filter((s) => s.workDate === date && s.status === 1)
+  const minutes = list.reduce((sum, s) => sum + (toMinutes(s.endTime) - toMinutes(s.startTime)), 0)
+  return { people: new Set(list.map((s) => s.employeeId)).size, hours: Math.round((minutes / 60) * 10) / 10 }
+}
+const groupCount = (group, date) =>
+  group.rows.filter((e) => shiftsOf(e.id, date).some((s) => s.status === 1)).length
+// 還沒休息、還沒過去、卻沒人上的班別（可能漏排）
+const gapShifts = (d) => (d.closed || d.past ? [] : SHIFT_KEYS.filter((sh) => !working(d.date, sh).length))
+
 // 有人上班 ok；休息日或已過去的日子 none；其餘沒人上班 gap（可能漏排）
 function slotClass(d, shift) {
   if (working(d.date, shift).length) return 'slot--ok'
@@ -214,7 +320,13 @@ async function fetchData() {
   loading.value = true
   try {
     const days = viewMode.value === 'week' ? weekDays.value : monthDays.value
-    schedules.value = await listScheduleOverview(days[0].date, days[days.length - 1].date)
+    // 員工清單只有 ADMIN/STAFF 能取；一般員工帳號就只顯示有排班的人
+    const [list, emps] = await Promise.all([
+      listScheduleOverview(days[0].date, days[days.length - 1].date),
+      authStore.isAdmin ? listEmployees().catch(() => []) : Promise.resolve([])
+    ])
+    schedules.value = list
+    employees.value = emps.filter((e) => e.status === 1)
   } finally {
     loading.value = false
   }
@@ -272,48 +384,193 @@ defineExpose({ refresh: fetchData })
   font-size: 15px;
 }
 
-/* ---------- 週檢視 ---------- */
-.grid {
+/* ---------- 週檢視：人員 × 日期 ---------- */
+.roster-wrap {
+  overflow-x: auto;
   border: 1px solid var(--paper-dim);
   border-radius: 8px;
-  overflow: hidden;
   background: #fff;
 }
-.grid__head,
-.grid__row {
+.roster {
+  min-width: 900px;
+  --cols: 150px repeat(7, minmax(104px, 1fr));
+}
+.r-row {
   display: grid;
-  grid-template-columns: 64px 1fr 1fr;
-  gap: 6px;
-  padding: 6px 8px;
-}
-.grid__head {
-  text-align: center;
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  background: #f3f4f5;
-}
-.grid__head small {
-  display: block;
-  font-size: 11px;
-}
-.grid__row {
-  align-items: stretch;
+  grid-template-columns: var(--cols);
   border-top: 1px solid var(--paper-dim);
 }
-.grid__row--today {
-  background: #f1f8fb;
+.r-row:first-child {
+  border-top: none;
 }
-.grid__date {
+.r-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  border-right: 1px solid var(--paper-dim);
+}
+.r-cell {
+  border-right: 1px solid var(--paper-dim);
+}
+.r-cell:last-child {
+  border-right: none;
+}
+.r-row--head,
+.r-row--stat {
+  background: #f3f4f5;
+}
+.r-row--head .r-name,
+.r-row--stat .r-name {
+  background: #f3f4f5;
+  font-size: 13px;
+  color: var(--ink-text-secondary);
+}
+.r-day {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--ink-text-secondary);
+}
+.r-day strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+.r-day--today {
+  background: var(--rinse-deep, #155f6c);
+  color: #dff1f4;
+}
+.r-day--today strong {
+  color: #fff;
+}
+.r-stat {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.r-stat__hours {
+  color: var(--ink-text-secondary);
+  font-size: 12px;
+}
+.r-stat__gap {
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #d9534f;
+}
+
+/* 職稱分組列 */
+.r-row--group {
+  background: var(--g-bg);
+}
+.r-row--group .r-name {
+  background: var(--g-bg);
+  font-weight: 700;
+  color: var(--g-fg);
+}
+.r-group__name small {
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.r-group__count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--g-fg);
+  border-right-color: rgba(0, 0, 0, 0.06);
+}
+
+/* 人員列 */
+.r-name__text {
+  font-weight: 600;
+  color: var(--ink);
+}
+.r-badge {
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  color: var(--g-fg);
+  background: var(--g-bg);
+  border: 1px solid var(--g-line);
+  border-radius: 4px;
+}
+.r-slot {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  line-height: 1.2;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  gap: 3px;
+  min-height: 48px;
+  padding: 3px;
+  justify-content: center;
 }
-.grid__date strong {
-  font-size: 14px;
-  color: var(--ink);
+.r-slot--today {
+  background: #f1f8fb;
+}
+.r-slot--closed {
+  background: #e4e6e8;
+  align-items: center;
+}
+.r-off {
+  font-size: 12px;
+  color: #8a949b;
+}
+/* 班別方塊：左側色條表示上午（青藍）／下午（靛紫） */
+.r-shift {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 8px;
+  line-height: 1.3;
+  font-size: 12px;
+  border-radius: 3px;
+  border-left: 4px solid transparent;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--paper-dim);
+}
+.r-shift strong {
+  font-size: 13px;
+}
+.r-shift span {
+  color: var(--ink-text-secondary);
+}
+.r-shift.shift--AM {
+  border-left-color: #1c7c8c;
+  background: #eef8fa;
+}
+.r-shift.shift--PM {
+  border-left-color: #5b5fc7;
+  background: #f1f2fb;
+}
+.r-shift--leave {
+  border-left-color: #c4cacf !important;
+  background: #f0f1f2 !important;
+  color: #8a949b;
+}
+.r-shift--leave strong {
+  text-decoration: line-through;
+}
+.r-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--ink-text-secondary);
 }
 
 /* ---------- 班別格（週檢視與月檢視詳細共用） ---------- */

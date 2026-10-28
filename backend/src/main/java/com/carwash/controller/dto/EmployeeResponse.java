@@ -16,6 +16,7 @@ public class EmployeeResponse {
     private Long id;
     private String name;
     private String phone;
+    private String title;
     private Integer status;
     private List<String> serviceItemNames;
     private List<Long> serviceItemIds;
@@ -34,6 +35,7 @@ public class EmployeeResponse {
                 employee.getId(),
                 employee.getName(),
                 employee.getPhone(),
+                employee.getTitle(),
                 employee.getStatus(),
                 names,
                 ids

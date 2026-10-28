@@ -15,6 +15,12 @@
         <el-table :data="employees" v-loading="loading" empty-text="尚未新增員工">
           <el-table-column prop="name" label="姓名" class-name="employee-name" />
           <el-table-column prop="phone" label="電話" />
+          <el-table-column label="職稱">
+            <template #default="{ row }">
+              <el-tag v-if="row.title" effect="plain">{{ row.title }}</el-tag>
+              <span v-else class="muted">—</span>
+            </template>
+          </el-table-column>
           <el-table-column label="狀態">
             <template #default="{ row }">
               <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '在職' : '已停用' }}</el-tag>
@@ -53,6 +59,20 @@
         </el-form-item>
         <el-form-item label="電話" prop="phone">
           <el-input v-model="form.phone" maxlength="10" inputmode="numeric" placeholder="09 開頭共 10 碼（選填）" />
+        </el-form-item>
+        <el-form-item label="職稱">
+          <el-select
+              v-model="form.title"
+              filterable
+              allow-create
+              clearable
+              default-first-option
+              placeholder="選擇或輸入職稱（選填）"
+              style="width: 100%"
+          >
+            <el-option v-for="t in titleOptions" :key="t" :label="t" :value="t" />
+          </el-select>
+          <div class="form-hint">有填職稱的員工，總班表會依職稱分組；沒人使用的職稱不會出現在班表上。</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -183,7 +203,14 @@ const currentEmployeeId = ref(null)
 const selectedServiceIds = ref([])
 const formRef = ref(null)
 
-const form = reactive({ name: '', phone: '' })
+const form = reactive({ name: '', phone: '', title: '' })
+
+// 職稱選項：常用職稱 + 目前員工已經用過的職稱
+const titleOptions = computed(() => {
+  const set = new Set(['店長', '資深技師', '技師', '助理', '實習生'])
+  employees.value.forEach((e) => e.title && set.add(e.title))
+  return [...set]
+})
 const rules = {
   name: [{ required: true, message: '請輸入員工姓名', trigger: 'blur' }],
   phone: [{ pattern: /^(09\d{8})?$/, message: '電話格式錯誤，請輸入 09 開頭共 10 碼的手機號碼', trigger: 'blur' }]
@@ -201,7 +228,11 @@ async function fetchData() {
 
 function openDialog(row) {
   editingId.value = row ? row.id : null
-  Object.assign(form, { name: row ? row.name : '', phone: row ? row.phone || '' : '' })
+  Object.assign(form, {
+    name: row ? row.name : '',
+    phone: row ? row.phone || '' : '',
+    title: row ? row.title || '' : ''
+  })
   dialogVisible.value = true
   formRef.value?.clearValidate()
 }
@@ -210,7 +241,7 @@ async function handleSave() {
   if (!(await formRef.value.validate().catch(() => false))) return
   saving.value = true
   try {
-    const data = { name: form.name.trim(), phone: form.phone.trim() }
+    const data = { name: form.name.trim(), phone: form.phone.trim(), title: (form.title || '').trim() }
     if (editingId.value) await updateEmployee(editingId.value, data)
     else await createEmployee(data)
     ElMessage.success('儲存成功')
@@ -433,6 +464,16 @@ onMounted(fetchData)
   display: flex;
   justify-content: flex-end;
   align-items: center;
+}
+.muted {
+  color: var(--ink-text-secondary);
+}
+.form-hint {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-text-secondary);
 }
 .hint {
   margin: 4px 0 16px;

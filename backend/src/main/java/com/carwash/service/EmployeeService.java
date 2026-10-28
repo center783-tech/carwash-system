@@ -8,7 +8,7 @@ public interface EmployeeService {
 
     Employee create(Employee employee);
 
-    Employee update(Long id, String name, String phone);
+    Employee update(Long id, String name, String phone, String title);
 
     /** 啟用 / 停用員工；停用後不會出現在可指派清單、已排的班全部刪除，既有預約不受影響 */
     Employee updateStatus(Long id, Integer status);

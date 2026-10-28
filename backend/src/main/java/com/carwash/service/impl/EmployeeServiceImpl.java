@@ -31,10 +31,11 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
-    public Employee update(Long id, String name, String phone) {
+    public Employee update(Long id, String name, String phone, String title) {
         Employee employee = getById(id);
         employee.setName(name.trim());
         employee.setPhone(phone == null || phone.isBlank() ? null : phone.trim());
+        employee.setTitle(title == null || title.isBlank() ? null : title.trim());
         return employeeRepository.save(employee);
     }
 

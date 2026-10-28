@@ -14,6 +14,7 @@ public class EmployeeScheduleResponse {
     private Long id;
     private Long employeeId;
     private String employeeName;
+    private String employeeTitle;
     private LocalDate workDate;
     private LocalTime startTime;
     private LocalTime endTime;
@@ -24,6 +25,7 @@ public class EmployeeScheduleResponse {
                 schedule.getId(),
                 schedule.getEmployee().getId(),
                 schedule.getEmployee().getName(),
+                schedule.getEmployee().getTitle(),
                 schedule.getWorkDate(),
                 schedule.getStartTime(),
                 schedule.getEndTime(),

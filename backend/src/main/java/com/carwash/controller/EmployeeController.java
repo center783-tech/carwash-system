@@ -25,7 +25,8 @@ public class EmployeeController {
 
     @PostMapping
     public ApiResponse<EmployeeResponse> create(@Valid @RequestBody EmployeeRequest req) {
-        Employee employee = Employee.builder().name(req.getName()).phone(req.getPhone()).build();
+        Employee employee = Employee.builder().name(req.getName()).phone(req.getPhone())
+                .title(req.getTitle() == null || req.getTitle().isBlank() ? null : req.getTitle().trim()).build();
         return ApiResponse.success("新增員工成功", EmployeeResponse.from(employeeService.create(employee)));
     }
 
@@ -38,7 +39,7 @@ public class EmployeeController {
     @PutMapping("/{id}")
     public ApiResponse<EmployeeResponse> update(@PathVariable Long id, @Valid @RequestBody EmployeeRequest req) {
         return ApiResponse.success("員工資料已更新",
-                EmployeeResponse.from(employeeService.update(id, req.getName(), req.getPhone())));
+                EmployeeResponse.from(employeeService.update(id, req.getName(), req.getPhone(), req.getTitle())));
     }
 
     @PutMapping("/{id}/status")

@@ -15,4 +15,8 @@ public class EmployeeRequest {
     /** 選填；有填的話要是 09 開頭共 10 碼的手機號碼 */
     @Pattern(regexp = "^(09\\d{8})?$", message = "電話格式錯誤，請輸入 09 開頭共 10 碼的手機號碼")
     private String phone;
+
+    /** 選填；空白視為沒有職稱 */
+    @Size(max = 30, message = "職稱最多 30 字")
+    private String title;
 }
