@@ -20,3 +20,8 @@ export function updateService(id, data) {
 export function deleteService(id) {
   return request.delete(`/services/${id}`)
 }
+
+// 後台用：含已下架項目
+export function listAllServices() {
+  return request.get('/services/admin/all')
+}

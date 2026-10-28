@@ -24,7 +24,7 @@ public class ServiceItemController {
     @PostMapping
     public ApiResponse<ServiceItemResponse> create(@Valid @RequestBody ServiceItemRequest req) {
         ServiceItem item = toEntity(req);
-        return ApiResponse.success("新增服務項目成功", ServiceItemResponse.from(serviceItemService.create(item)));
+        return ApiResponse.success("新增服務項目成功", toResponse(serviceItemService.create(item)));
     }
 
     @GetMapping
@@ -32,18 +32,23 @@ public class ServiceItemController {
         List<ServiceItem> items = (category != null)
                 ? serviceItemService.listByCategory(category)
                 : serviceItemService.listActive();
-        return ApiResponse.success(items.stream().map(ServiceItemResponse::from).collect(Collectors.toList()));
+        return ApiResponse.success(items.stream().map(this::toResponse).collect(Collectors.toList()));
+    }
+
+    @GetMapping("/admin/all")
+    public ApiResponse<List<ServiceItemResponse>> listAllForAdmin() {
+        return ApiResponse.success(serviceItemService.listAll().stream().map(this::toResponse).collect(Collectors.toList()));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<ServiceItemResponse> getById(@PathVariable Long id) {
-        return ApiResponse.success(ServiceItemResponse.from(serviceItemService.getById(id)));
+        return ApiResponse.success(toResponse(serviceItemService.getById(id)));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<ServiceItemResponse> update(@PathVariable Long id, @Valid @RequestBody ServiceItemRequest req) {
         ServiceItem updates = toEntity(req);
-        return ApiResponse.success("更新成功", ServiceItemResponse.from(serviceItemService.update(id, updates)));
+        return ApiResponse.success("更新成功", toResponse(serviceItemService.update(id, updates)));
     }
 
     @DeleteMapping("/{id}")
@@ -60,6 +65,15 @@ public class ServiceItemController {
                 .durationMinutes(req.getDurationMinutes())
                 .category(req.getCategory())
                 .imageUrl(req.getImageUrl())
+                .status(req.getStatus())
+                .bundle(Boolean.TRUE.equals(req.getBundle()))
+                .bundleItemIds(req.getBundleItemIds() == null ? null
+                        : req.getBundleItemIds().stream().map(String::valueOf).collect(Collectors.joining(",")))
                 .build();
+    }
+
+    private ServiceItemResponse toResponse(ServiceItem item) {
+        return ServiceItemResponse.from(item, serviceItemService.bundleItemIds(item),
+                serviceItemService.bundleOriginalPrice(item));
     }
 }

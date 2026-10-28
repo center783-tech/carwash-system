@@ -67,6 +67,20 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional(readOnly = true)
     public List<Employee> findAvailableByService(Long serviceId) {
+        ServiceItem item = serviceItemRepository.findById(serviceId).orElse(null);
+        if (item != null && Boolean.TRUE.equals(item.getBundle()) && item.getBundleItemIds() != null) {
+            // 組合：員工必須會做組合內的每一項服務
+            List<Employee> result = null;
+            for (String id : item.getBundleItemIds().split(",")) {
+                List<Employee> capable = employeeRepository.findAvailableByServiceId(Long.valueOf(id.trim()));
+                if (result == null) {
+                    result = new java.util.ArrayList<>(capable);
+                } else {
+                    result.retainAll(capable);
+                }
+            }
+            return result == null ? List.of() : result;
+        }
         return employeeRepository.findAvailableByServiceId(serviceId);
     }
 

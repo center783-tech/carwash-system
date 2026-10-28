@@ -12,7 +12,7 @@
     <!-- Step 1: 選服務 -->
     <div v-if="activeStep === 0">
       <el-select v-model="form.serviceId" placeholder="請選擇服務項目" style="width: 100%" @change="onServiceSelected">
-        <el-option v-for="s in services" :key="s.id" :label="`${s.name}（NT$${s.price}）`" :value="s.id" />
+        <el-option v-for="s in services" :key="s.id" :label="`${s.bundle ? '【組合優惠】' : ''}${s.name}（NT$${s.price}）`" :value="s.id" />
       </el-select>
       <div class="step-actions">
         <el-button type="primary" :disabled="!form.serviceId" @click="activeStep = 1">下一步</el-button>

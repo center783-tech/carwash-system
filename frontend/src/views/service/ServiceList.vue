@@ -1,4 +1,4 @@
-<template>
+services.value = await listServices()<template>
   <div class="page-container">
     <header class="page-header">
       <span class="eyebrow">SERVICES</span>
@@ -6,7 +6,28 @@
       <p>選一項服務，接著就能直接選時段送出預約。</p>
     </header>
 
-    <el-radio-group v-model="category" @change="fetchServices" class="filter">
+    <!-- 組合優惠：放最上面、不受分類篩選影響，讓會員一進來就看到 -->
+    <section v-if="bundles.length" class="deals">
+      <div class="deals__title"><span class="deals__fire">組合優惠</span><small>多項一起做，比單點更划算</small></div>
+      <div class="deals__grid">
+        <div v-for="b in bundles" :key="b.id" class="deal">
+          <div v-if="saving(b) > 0" class="deal__ribbon">省 NT$ {{ saving(b) }}</div>
+          <h3>{{ b.name }}</h3>
+          <div class="deal__items"><span v-for="n in childNames(b)" :key="n" class="deal__chip">{{ n }}</span></div>
+          <p v-if="b.description" class="deal__desc">{{ b.description }}</p>
+          <div class="deal__bottom">
+            <div class="deal__prices">
+              <span v-if="b.originalPrice" class="deal__old">NT$ {{ b.originalPrice }}</span>
+              <span class="deal__now">NT$ {{ b.price }}</span>
+              <span class="deal__time">約 {{ b.durationMinutes }} 分鐘</span>
+            </div>
+            <el-button type="warning" round @click="goReserve(b.id)">立即預約</el-button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <el-radio-group v-model="category" class="filter">
       <el-radio-button value="">全部</el-radio-button>
       <el-radio-button value="洗車">洗車</el-radio-button>
       <el-radio-button value="美容">美容</el-radio-button>
@@ -14,7 +35,7 @@
     </el-radio-group>
 
     <div class="grid" v-loading="loading">
-      <el-card v-for="item in services" :key="item.id" class="service-card">
+      <el-card v-for="item in shownServices" :key="item.id" class="service-card">
         <div class="service-card__top">
           <div class="service-card__icon"><ServiceIcon :name="item.name" :category="item.category" /></div>
           <span v-if="item.category" class="service-card__category">{{ item.category }}</span>
@@ -31,12 +52,12 @@
       </el-card>
     </div>
 
-    <el-empty v-if="!loading && services.length === 0" description="目前沒有符合的服務項目" />
+    <el-empty v-if="!loading && shownServices.length === 0 && bundles.length === 0" description="目前沒有符合的服務項目" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listServices } from '@/api/service'
 import ServiceIcon from '@/components/ServiceIcon.vue'
@@ -53,6 +74,19 @@ async function fetchServices() {
   } finally {
     loading.value = false
   }
+}
+
+const bundles = computed(() => services.value.filter((s) => s.bundle))
+const shownServices = computed(() =>
+  services.value.filter((s) => !s.bundle && (!category.value || s.category === category.value))
+)
+
+function saving(b) {
+  return b.originalPrice ? Math.round(b.originalPrice - b.price) : 0
+}
+
+function childNames(b) {
+  return (b.bundleItemIds || []).map((id) => services.value.find((s) => s.id === id)?.name).filter(Boolean)
 }
 
 function goReserve(serviceId) {
@@ -197,6 +231,97 @@ onMounted(fetchServices)
 .duration {
   font-size: 13px;
   color: var(--ink-text-secondary);
+}
+
+.deals {
+  margin-bottom: 32px;
+}
+.deals__title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.deals__fire {
+  font-size: 22px;
+  font-weight: 800;
+  color: #e6522c;
+}
+.deals__title small {
+  color: var(--ink-text-secondary);
+}
+.deals__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+.deal {
+  position: relative;
+  padding: 22px 20px 18px;
+  border-radius: var(--radius-md);
+  border: 2px solid #f0a53a;
+  background: linear-gradient(135deg, #fff7e8, #ffeccc);
+  box-shadow: 0 8px 24px rgba(230, 82, 44, 0.15);
+}
+.deal__ribbon {
+  position: absolute;
+  top: -2px;
+  right: 16px;
+  padding: 6px 12px 8px;
+  border-radius: 0 0 10px 10px;
+  background: #e6522c;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+.deal h3 {
+  margin: 0 70px 10px 0;
+  font-size: 19px;
+  color: #14202b;
+}
+.deal__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.deal__chip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #f0a53a;
+  color: #8a5a00;
+  font-size: 13px;
+}
+.deal__desc {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #5a4a2a;
+}
+.deal__bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+.deal__prices {
+  display: flex;
+  flex-direction: column;
+}
+.deal__old {
+  text-decoration: line-through;
+  color: #909399;
+  font-size: 14px;
+}
+.deal__now {
+  font-size: 28px;
+  font-weight: 800;
+  color: #e6522c;
+  line-height: 1.1;
+}
+.deal__time {
+  font-size: 12px;
+  color: #8a7a5a;
 }
 
 @media (prefers-reduced-motion: reduce) {

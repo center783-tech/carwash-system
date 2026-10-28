@@ -62,6 +62,8 @@ public class SecurityConfig {
                         .accessDeniedHandler(jwtAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        // 後台服務清單含已下架項目，必須放在下面公開的 GET /api/services/** 之前
+                        .requestMatchers(HttpMethod.GET, "/api/services/admin/**").hasAnyRole("ADMIN", "STAFF")
                         // 服務項目清單開放未登入瀏覽（洗車服務瀏覽功能）
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
                         // 手動標記付款成功/失敗只有後台能用，避免會員自己把付款單改成已付款

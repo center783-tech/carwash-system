@@ -48,8 +48,8 @@ const days = ref([])
 
 const tip = computed(() => {
   const rain = days.value[0]?.rain ?? 0
-  if (rain >= 60) return { level: 'bad', text: '今天降雨機率偏高，洗完可能馬上又弄髒，建議改天預約。' }
-  if (rain >= 30) return { level: 'mid', text: '今天可能有雨，想打蠟或鍍膜的話建議挑晴天。' }
+  if (rain >= 60) return { level: 'bad', text: '今天降雨機率偏高，不適合外部洗車，很適合來做內部清潔、引擎清潔或保養類服務！' }
+  if (rain >= 30) return { level: 'mid', text: '今天可能有雨，外部洗車、打蠟或鍍膜建議挑晴天，也可以考慮內部清潔、引擎清潔或保養類服務。' }
   return { level: 'good', text: '今天降雨機率低，很適合洗車！' }
 })
 

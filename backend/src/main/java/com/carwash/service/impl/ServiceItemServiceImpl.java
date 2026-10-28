@@ -2,6 +2,7 @@ package com.carwash.service.impl;
 
 import com.carwash.constant.RedisKeyConstants;
 import com.carwash.entity.ServiceItem;
+import com.carwash.exception.BusinessException;
 import com.carwash.exception.ResourceNotFoundException;
 import com.carwash.repository.ServiceItemRepository;
 import com.carwash.service.ServiceItemService;
@@ -11,8 +12,11 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.function.Supplier;
 
 @Slf4j
@@ -26,7 +30,10 @@ public class ServiceItemServiceImpl implements ServiceItemService {
 
     @Override
     public ServiceItem create(ServiceItem serviceItem) {
-        serviceItem.setStatus(1);
+        if (serviceItem.getStatus() == null) {
+            serviceItem.setStatus(1);
+        }
+        applyBundleRules(serviceItem, null);
         ServiceItem saved = serviceItemRepository.save(serviceItem);
         evictListCaches(saved.getCategory());
         return saved;
@@ -43,6 +50,12 @@ public class ServiceItemServiceImpl implements ServiceItemService {
         item.setDurationMinutes(updates.getDurationMinutes());
         item.setCategory(updates.getCategory());
         item.setImageUrl(updates.getImageUrl());
+        item.setBundle(updates.getBundle());
+        item.setBundleItemIds(updates.getBundleItemIds());
+        if (updates.getStatus() != null) {
+            item.setStatus(updates.getStatus());
+        }
+        applyBundleRules(item, id);
         ServiceItem saved = serviceItemRepository.save(item);
 
         // 分類可能被改掉，新舊分類的快取都要清，不然舊分類頁面還會看到已經不屬於這個分類的項目
@@ -83,6 +96,64 @@ public class ServiceItemServiceImpl implements ServiceItemService {
                 RedisKeyConstants.serviceCategoryListKey(category),
                 () -> serviceItemRepository.findByCategoryAndStatus(category, 1)
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ServiceItem> listAll() {
+        return serviceItemRepository.findAll();
+    }
+
+    @Override
+    public List<Long> bundleItemIds(ServiceItem item) {
+        if (!Boolean.TRUE.equals(item.getBundle()) || item.getBundleItemIds() == null
+                || item.getBundleItemIds().isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(item.getBundleItemIds().split(","))
+                .map(String::trim)
+                .map(Long::valueOf)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal bundleOriginalPrice(ServiceItem item) {
+        List<Long> ids = bundleItemIds(item);
+        if (ids.isEmpty()) {
+            return null;
+        }
+        return serviceItemRepository.findAllById(ids).stream()
+                .map(ServiceItem::getPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * 組合的規則檢查與整理：至少 2 個單項、不可包含組合或自己、單項需存在；
+     * 服務時長由各單項加總（預約時段長度依此計算），非組合則清掉組合欄位。
+     */
+    private void applyBundleRules(ServiceItem item, Long selfId) {
+        if (!Boolean.TRUE.equals(item.getBundle())) {
+            item.setBundle(false);
+            item.setBundleItemIds(null);
+            return;
+        }
+        List<Long> ids = bundleItemIds(item).stream().distinct().collect(Collectors.toList());
+        if (ids.size() < 2) {
+            throw new BusinessException("組合優惠至少要選 2 個服務項目");
+        }
+        if (selfId != null && ids.contains(selfId)) {
+            throw new BusinessException("組合不能包含自己");
+        }
+        List<ServiceItem> children = serviceItemRepository.findAllById(ids);
+        if (children.size() != ids.size()) {
+            throw new BusinessException("組合內有不存在的服務項目");
+        }
+        if (children.stream().anyMatch(c -> Boolean.TRUE.equals(c.getBundle()))) {
+            throw new BusinessException("組合內不能再包含其他組合");
+        }
+        item.setBundleItemIds(ids.stream().map(String::valueOf).collect(Collectors.joining(",")));
+        item.setDurationMinutes(children.stream().mapToInt(ServiceItem::getDurationMinutes).sum());
     }
 
     /**
