@@ -123,13 +123,9 @@
         </div>
         <div class="detail__slots">
           <div v-for="sh in SHIFT_KEYS" :key="sh" class="slot" :class="[slotClass(selectedDay, sh), `shift--${sh}`]">
-            <div class="slot__name">{{ SHIFT_LABEL[sh] }}<small>{{ SHIFT_TIME[sh] }}</small></div>
-            <span v-for="n in working(selectedDay.date, sh)" :key="n.id" class="chip" :style="chipStyle(n)">
-              <i class="chip__avatar">{{ initial(n) }}</i>{{ n.employeeName }}
-            </span>
-            <span v-for="n in onLeave(selectedDay.date, sh)" :key="n.id" class="chip chip--leave">
-              <i class="chip__avatar">{{ initial(n) }}</i>{{ n.employeeName }}<em>請假</em>
-            </span>
+            <div class="slot__name">{{ SHIFT_LABEL[sh] }}</div>
+            <span v-for="n in working(selectedDay.date, sh)" :key="n.id" class="name-chip">{{ n.employeeName }}</span>
+            <span v-for="n in onLeave(selectedDay.date, sh)" :key="n.id" class="name-chip name-chip--leave">{{ n.employeeName }}（假）</span>
             <span v-if="!working(selectedDay.date, sh).length" class="slot__empty">{{ emptyText(selectedDay) }}</span>
           </div>
         </div>
@@ -771,6 +767,19 @@ defineExpose({ refresh: fetchData })
   margin-bottom: 8px;
   font-size: 16px;
   font-weight: 700;
+}
+/* 月檢視下方的當日名單：簡單的名字標籤（底色沿用上面 .slot 與週班表一致的配色） */
+.name-chip {
+  padding: 1px 8px;
+  font-size: 13px;
+  color: #1d7a3c;
+  background: #fff;
+  border-radius: 999px;
+}
+.name-chip--leave {
+  color: #a8650a;
+  text-decoration: line-through;
+  background: #fff1d6;
 }
 .detail__slots {
   display: grid;
