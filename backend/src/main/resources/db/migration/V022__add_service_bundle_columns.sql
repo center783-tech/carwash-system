@@ -4,5 +4,5 @@
 -- 組合的 price 即優惠價，原價由後端依各單項價格加總算出
 -- =========================================================
 ALTER TABLE services
-    ADD COLUMN is_bundle       TINYINT NOT NULL DEFAULT 0,
+    ADD COLUMN is_bundle       INT NOT NULL DEFAULT 0,
     ADD COLUMN bundle_item_ids VARCHAR(255) NULL;
