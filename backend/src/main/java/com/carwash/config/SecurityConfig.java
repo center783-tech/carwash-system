@@ -39,6 +39,10 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/members/register",
             "/api/members/login",
+            "/api/members/forgot-username",
+            "/api/members/recover-username",
+            "/api/members/forgot-password",
+            "/api/members/reset-password",
             "/api/admin/login",
             "/api/payments/newebpay/notify",   // 藍新 NotifyURL，無 JWT，靠 TradeSha 驗證
             "/api/payments/newebpay/return",   // 藍新 ReturnURL，使用者瀏覽器導回

@@ -19,6 +19,11 @@
         </el-button>
       </el-form>
       <div class="auth-links">
+        <router-link to="/forgot-username">忘記帳號？</router-link>
+        <span class="sep">|</span>
+        <router-link to="/forgot-password">忘記密碼？</router-link>
+      </div>
+      <div class="auth-links">
         <router-link to="/register">還沒有帳號？立即註冊</router-link>
       </div>
     </el-card>
@@ -83,6 +88,10 @@ async function handleLogin() {
   margin-top: 16px;
   text-align: center;
   font-size: 14px;
+}
+.sep {
+  margin: 0 8px;
+  color: #ccc;
 }
 @media (max-width: 900px) {
   .auth-art { display: none; }

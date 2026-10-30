@@ -53,6 +53,24 @@ public final class RedisKeyConstants {
         return PASSWORD_CODE_FAIL_PREFIX + memberId;
     }
 
+    // ------- 忘記帳號 / 忘記密碼的 Email 連結 token：key 只存 token 的 SHA-256，Redis 外洩也無法直接拿來用 -------
+    public static final String RECOVER_USERNAME_TOKEN_PREFIX = APP_PREFIX + "member:recover-username:";
+    public static final String RESET_PASSWORD_TOKEN_PREFIX = APP_PREFIX + "member:reset-password:";
+    public static final String RECOVER_COOLDOWN_PREFIX = APP_PREFIX + "member:recover-cooldown:";
+
+    public static String recoverUsernameTokenKey(String tokenHash) {
+        return RECOVER_USERNAME_TOKEN_PREFIX + tokenHash;
+    }
+
+    public static String resetPasswordTokenKey(String tokenHash) {
+        return RESET_PASSWORD_TOKEN_PREFIX + tokenHash;
+    }
+
+    /** 同一個 Email、同一種用途的重寄冷卻 */
+    public static String recoverCooldownKey(String type, String emailHash) {
+        return RECOVER_COOLDOWN_PREFIX + type + ":" + emailHash;
+    }
+
     // ------- 常用 TTL（秒） -------
     public static final long SERVICE_LIST_TTL_SECONDS = 600;       // 10 分鐘
     public static final long EMPLOYEE_SCHEDULE_TTL_SECONDS = 300;  // 5 分鐘
@@ -61,4 +79,6 @@ public final class RedisKeyConstants {
     public static final long PASSWORD_CODE_TTL_SECONDS = 300;      // 驗證碼 5 分鐘有效
     public static final long PASSWORD_CODE_COOLDOWN_SECONDS = 60;  // 同一會員 60 秒內不可重寄
     public static final int PASSWORD_CODE_MAX_FAILS = 5;           // 驗證碼錯誤超過次數即作廢
+    public static final long RECOVER_TOKEN_TTL_SECONDS = 900;      // 找回連結 15 分鐘有效
+    public static final long RECOVER_COOLDOWN_SECONDS = 60;        // 同一 Email 60 秒內不可重寄
 }

@@ -17,6 +17,30 @@ const routes = [
     meta: { hideNavBar: true }
   },
   {
+    path: '/forgot-username',
+    name: 'ForgotUsername',
+    component: () => import('@/views/member/ForgotAccount.vue'),
+    meta: { hideNavBar: true }
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/views/member/ForgotAccount.vue'),
+    meta: { hideNavBar: true }
+  },
+  {
+    path: '/recover-username',
+    name: 'RecoverUsername',
+    component: () => import('@/views/member/RecoverUsername.vue'),
+    meta: { hideNavBar: true }
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@/views/member/ResetPassword.vue'),
+    meta: { hideNavBar: true }
+  },
+  {
     path: '/services',
     name: 'ServiceList',
     component: () => import('@/views/service/ServiceList.vue')

@@ -10,6 +10,24 @@ export function login(data) {
   return request.post('/members/login', data)
 }
 
+// 忘記帳號 / 忘記密碼（公開端點）：寄信一律回成功，不透露 Email 是否已註冊
+export function forgotUsername(email) {
+  return request.post('/members/forgot-username', { email })
+}
+
+export function recoverUsername(token) {
+  // 憑信件連結上的 token 取得帳號（回傳字串），token 只能用一次
+  return request.post('/members/recover-username', { token })
+}
+
+export function forgotPassword(email) {
+  return request.post('/members/forgot-password', { email })
+}
+
+export function resetPassword(token, newPassword) {
+  return request.post('/members/reset-password', { token, newPassword })
+}
+
 export function getMember(id) {
   return request.get(`/members/${id}`)
 }

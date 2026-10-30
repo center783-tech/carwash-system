@@ -7,6 +7,7 @@ import com.carwash.security.AccessGuard;
 import com.carwash.security.JwtTokenProvider;
 import com.carwash.security.UserPrincipal;
 import com.carwash.exception.BusinessException;
+import com.carwash.service.AccountRecoveryService;
 import com.carwash.service.MemberService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class MemberController {
 
     private final MemberService memberService;
+    private final AccountRecoveryService accountRecoveryService;
     private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/register")
@@ -40,6 +42,30 @@ public class MemberController {
         Member member = memberService.login(req.getUsername(), req.getPassword());
         String token = jwtTokenProvider.generateToken(UserPrincipal.fromMember(member));
         return ApiResponse.success(LoginResponse.of(token, member.getId(), member.getUsername(), "MEMBER"));
+    }
+
+    // 以下四支為公開端點（SecurityConfig.PUBLIC_ENDPOINTS）。「寄信」一律回同樣訊息，不透露 Email 是否已註冊
+    @PostMapping("/forgot-username")
+    public ApiResponse<Void> forgotUsername(@Valid @RequestBody EmailRequest req) {
+        accountRecoveryService.sendUsernameLink(req.getEmail());
+        return ApiResponse.success("若此 Email 已註冊，查詢帳號的連結已寄出，請至信箱查收", null);
+    }
+
+    @PostMapping("/recover-username")
+    public ApiResponse<String> recoverUsername(@Valid @RequestBody TokenRequest req) {
+        return ApiResponse.success(accountRecoveryService.consumeUsernameToken(req.getToken()));
+    }
+
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(@Valid @RequestBody EmailRequest req) {
+        accountRecoveryService.sendPasswordResetLink(req.getEmail());
+        return ApiResponse.success("若此 Email 已註冊，重設密碼的連結已寄出，請至信箱查收", null);
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        accountRecoveryService.resetPassword(req.getToken(), req.getNewPassword());
+        return ApiResponse.success("密碼已重設，請使用新密碼登入", null);
     }
 
     @GetMapping("/{id}")
