@@ -13,6 +13,16 @@ export function confirmReservation(id, employeeId) {
   return request.put(`/reservations/${id}/confirm`, null, { params: { employeeId } })
 }
 
+// 後台指派（改派）員工；employeeId 傳 null 代表取消指派
+export function assignEmployee(id, employeeId) {
+  return request.put(`/reservations/${id}/assign`, { employeeId })
+}
+
+// 這筆預約目前可指派的員工（在職、會該服務、當天有班、時段不衝突）
+export function listAssignableEmployees(id) {
+  return request.get(`/reservations/${id}/assignable-employees`)
+}
+
 export function cancelReservation(id) {
   return request.put(`/reservations/${id}/cancel`)
 }

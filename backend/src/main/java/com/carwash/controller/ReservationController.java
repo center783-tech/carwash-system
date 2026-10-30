@@ -1,7 +1,9 @@
 package com.carwash.controller;
 
 import com.carwash.constant.ReservationStatus;
+import com.carwash.controller.dto.AssignEmployeeRequest;
 import com.carwash.controller.dto.CreateReservationRequest;
+import com.carwash.controller.dto.EmployeeResponse;
 import com.carwash.controller.dto.ReservationResponse;
 import com.carwash.entity.Reservation;
 import com.carwash.exception.BusinessException;
@@ -59,6 +61,20 @@ public class ReservationController {
     public ApiResponse<ReservationResponse> confirm(@PathVariable Long id,
                                                       @RequestParam(required = false) Long employeeId) {
         return ApiResponse.success("預約已確認", ReservationResponse.from(reservationService.confirm(id, employeeId)));
+    }
+
+    @PutMapping("/{id}/assign")
+    public ApiResponse<ReservationResponse> assignEmployee(@PathVariable Long id,
+                                                             @RequestBody AssignEmployeeRequest req) {
+        Reservation reservation = reservationService.assignEmployee(id, req.getEmployeeId());
+        return ApiResponse.success(req.getEmployeeId() == null ? "已取消指派" : "指派員工成功",
+                ReservationResponse.from(reservation));
+    }
+
+    @GetMapping("/{id}/assignable-employees")
+    public ApiResponse<List<EmployeeResponse>> assignableEmployees(@PathVariable Long id) {
+        return ApiResponse.success(reservationService.listAssignableEmployees(id).stream()
+                .map(EmployeeResponse::from).collect(Collectors.toList()));
     }
 
     @PutMapping("/{id}/cancel")

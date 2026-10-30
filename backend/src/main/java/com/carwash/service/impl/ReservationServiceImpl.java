@@ -33,6 +33,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final VehicleRepository vehicleRepository;
     private final ServiceItemRepository serviceItemRepository;
     private final EmployeeRepository employeeRepository;
+    private final EmployeeScheduleRepository employeeScheduleRepository;
     private final MemberCouponRepository memberCouponRepository;
     private final ParkingZoneRepository parkingZoneRepository;
     private final ClosedDateRepository closedDateRepository;
@@ -159,6 +160,64 @@ public class ReservationServiceImpl implements ReservationService {
         }
         reservation.setStatus(ReservationStatus.CONFIRMED);
         return reservationRepository.save(reservation);
+    }
+
+    @Override
+    public Reservation assignEmployee(Long reservationId, Long employeeId) {
+        Reservation reservation = getById(reservationId);
+        requireAssignable(reservation);
+        if (employeeId == null) {
+            reservation.setEmployee(null);
+        } else {
+            Employee employee = employeeRepository.findById(employeeId)
+                    .orElseThrow(() -> ResourceNotFoundException.of("Employee", employeeId));
+            String reason = unassignableReason(reservation, employee);
+            if (reason != null) {
+                throw new BusinessException(reason);
+            }
+            reservation.setEmployee(employee);
+        }
+        return reservationRepository.save(reservation);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Employee> listAssignableEmployees(Long reservationId) {
+        Reservation reservation = getById(reservationId);
+        requireAssignable(reservation);
+        return employeeRepository.findByStatus(1).stream()
+                .filter(e -> unassignableReason(reservation, e) == null)
+                .toList();
+    }
+
+    private void requireAssignable(Reservation reservation) {
+        ReservationStatus status = reservation.getStatus();
+        if (status == ReservationStatus.CANCELLED || status == ReservationStatus.COMPLETED) {
+            throw new BusinessException("已取消或已完成的預約無法指派員工");
+        }
+    }
+
+    /** 不能指派的原因；可以指派時回傳 null。目前已指派的員工不算跟自己衝突 */
+    private String unassignableReason(Reservation r, Employee employee) {
+        if (employee.getStatus() == null || employee.getStatus() != 1) {
+            return "該員工已停用，無法指派";
+        }
+        if (employee.getServiceItems().stream().noneMatch(s -> s.getId().equals(r.getServiceItem().getId()))) {
+            return "該員工無法提供此服務項目";
+        }
+        boolean working = employeeScheduleRepository
+                .findByEmployeeIdAndWorkDate(employee.getId(), r.getReservationDate()).stream()
+                .anyMatch(s -> s.getStatus() == 1
+                        && !r.getTimeSlotStart().isBefore(s.getStartTime())
+                        && r.getTimeSlotStart().isBefore(s.getEndTime()));
+        if (!working) {
+            return "該員工在此時段沒有排班或正在請假";
+        }
+        if (reservationRepository.countEmployeeOverlapping(employee.getId(), r.getReservationDate(),
+                r.getTimeSlotStart(), r.getTimeSlotEnd(), r.getId()) > 0) {
+            return "該員工在此時段已有其他預約";
+        }
+        return null;
     }
 
     @Override

@@ -36,7 +36,15 @@
       <el-table-column prop="plateNumber" label="車牌" />
       <el-table-column prop="zoneName" label="車位區" />
       <el-table-column prop="serviceName" label="服務項目" />
-      <el-table-column prop="employeeName" label="指派員工" />
+      <el-table-column label="指派員工">
+        <template #default="{ row }">
+          <span v-if="row.employeeName">{{ row.employeeName }}</span>
+          <span v-else class="unassigned">未指派</span>
+          <el-button v-if="canAssign(row)" link type="primary" @click="openAssign(row)">
+            {{ row.employeeName ? '改派' : '指派' }}
+          </el-button>
+        </template>
+      </el-table-column>
       <el-table-column prop="timeSlotStart" label="時段" />
       <el-table-column prop="totalAmount" label="金額" />
       <el-table-column label="狀態">
@@ -68,6 +76,23 @@
     </el-table>
 
     <el-empty v-if="!loading && reservations.length === 0" description="這個期間沒有預約紀錄" />
+
+    <!-- 指派員工：只列出此時段可指派的人（在職、會此服務、當天有班、時段不衝突） -->
+    <el-dialog v-model="assignVisible" title="指派員工" width="420px">
+      <p v-if="assignTarget" class="assign-info">
+        {{ assignTarget.reservationDate }} {{ assignTarget.timeSlotStart }}・{{ assignTarget.serviceName }}
+      </p>
+      <el-select v-model="assignEmployeeId" placeholder="請選擇員工" clearable style="width: 100%"
+                 :loading="assignLoading" no-data-text="這個時段沒有可指派的員工">
+        <el-option v-for="e in assignable" :key="e.id" :value="e.id"
+                   :label="e.title ? `${e.name}（${e.title}）` : e.name" />
+      </el-select>
+      <p class="assign-hint">清空選項後儲存，會取消目前的指派。</p>
+      <template #footer>
+        <el-button @click="assignVisible = false">取消</el-button>
+        <el-button type="primary" :loading="assigning" @click="handleAssign">儲存</el-button>
+      </template>
+    </el-dialog>
   </div>
   </div>
 </template>
@@ -76,7 +101,10 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AdminNav from '@/components/AdminNav.vue'
-import { listReservationsByDateRange, confirmReservation, completeReservation } from '@/api/reservation'
+import {
+  listReservationsByDateRange, confirmReservation, completeReservation,
+  assignEmployee, listAssignableEmployees
+} from '@/api/reservation'
 import { collectCashPayment } from '@/api/payment'
 
 const reservations = ref([])
@@ -164,6 +192,40 @@ async function handleCollectCash(row) {
   fetchData()
 }
 
+// 指派員工
+const canAssign = (row) => ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(row.status)
+const assignVisible = ref(false)
+const assignTarget = ref(null)
+const assignEmployeeId = ref(null)
+const assignable = ref([])
+const assignLoading = ref(false)
+const assigning = ref(false)
+
+async function openAssign(row) {
+  assignTarget.value = row
+  assignEmployeeId.value = row.employeeId ?? null
+  assignable.value = []
+  assignVisible.value = true
+  assignLoading.value = true
+  try {
+    assignable.value = await listAssignableEmployees(row.id)
+  } finally {
+    assignLoading.value = false
+  }
+}
+
+async function handleAssign() {
+  assigning.value = true
+  try {
+    await assignEmployee(assignTarget.value.id, assignEmployeeId.value ?? null)
+    ElMessage.success(assignEmployeeId.value ? '已指派員工' : '已取消指派')
+    assignVisible.value = false
+    fetchData()
+  } finally {
+    assigning.value = false
+  }
+}
+
 async function handleConfirm(id) {
   await confirmReservation(id)
   ElMessage.success('已確認預約')
@@ -200,6 +262,18 @@ onMounted(fetchData)
 .filter-label {
   width: 64px;
   font-size: 13px;
+  color: var(--ink-text-secondary);
+}
+.unassigned {
+  color: var(--ink-text-secondary);
+}
+.assign-info {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+.assign-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
   color: var(--ink-text-secondary);
 }
 .header-row {

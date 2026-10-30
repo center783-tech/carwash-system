@@ -257,6 +257,13 @@ const groupStyle = (i) => ({
   '--g-line': GROUP_PALETTE[i % GROUP_PALETTE.length].line
 })
 
+// 職稱由高到低排列（店長最上、實習生最下）；不在清單內的自訂職稱排在後面。顏色也依此順序固定
+const TITLE_ORDER = ['店長', '資深技師', '技師', '助理', '實習生']
+const titleRank = (t) => {
+  const i = TITLE_ORDER.indexOf(t)
+  return i === -1 ? TITLE_ORDER.length : i
+}
+
 // 這一週要列出的人：在職員工 + 這週有排班的人（姓名、職稱以員工資料為準）
 const rosterPeople = computed(() => {
   const map = new Map()
@@ -273,12 +280,12 @@ const rosterPeople = computed(() => {
 const rosterGroups = computed(() => {
   const people = rosterPeople.value
   if (!people.length) return []
-  const titles = [...new Set(people.map((p) => p.title).filter(Boolean))]
+  const titles = [...new Set(people.map((p) => p.title).filter(Boolean))].sort((a, b) => titleRank(a) - titleRank(b))
   if (!titles.length) return [{ key: '_all', title: '', style: UNTITLED_STYLE, rows: people }]
-  const groups = titles.map((t, i) => ({
+  const groups = titles.map((t) => ({
     key: t,
     title: t,
-    style: groupStyle(i),
+    style: groupStyle(titleRank(t)),
     rows: people.filter((p) => p.title === t)
   }))
   const rest = people.filter((p) => !p.title)
@@ -785,5 +792,81 @@ defineExpose({ refresh: fetchData })
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+/* ---------- 手機：班表欄位縮小，一屏看到更多天 ---------- */
+@media (max-width: 640px) {
+  .roster {
+    min-width: 0;
+    --cols: 60px repeat(7, minmax(52px, 1fr));
+  }
+  .r-name {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 6px;
+  }
+  .r-name__text {
+    font-size: 13px;
+  }
+  .r-badge {
+    padding: 0 4px;
+    font-size: 10px;
+    line-height: 16px;
+  }
+  .r-row--head .r-name,
+  .r-row--stat .r-name {
+    font-size: 11px;
+  }
+  .r-day {
+    flex-direction: column;
+    gap: 0;
+    padding: 4px 1px;
+    font-size: 10px;
+  }
+  .r-day strong {
+    font-size: 11px;
+  }
+  .r-stat {
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 3px 1px;
+    font-size: 11px;
+  }
+  .r-stat__hours,
+  .r-stat__gap {
+    font-size: 10px;
+  }
+  .r-group__name {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 3px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .r-group__name small {
+    font-size: 10px;
+  }
+  .r-group__count {
+    font-size: 11px;
+  }
+  .r-slot {
+    min-height: 36px;
+    padding: 2px;
+  }
+  .r-shift {
+    padding: 2px 3px;
+    font-size: 9px;
+    border-left-width: 3px;
+    text-align: center;
+  }
+  .r-shift strong {
+    font-size: 10px;
+  }
+  .r-off {
+    font-size: 10px;
+  }
 }
 </style>

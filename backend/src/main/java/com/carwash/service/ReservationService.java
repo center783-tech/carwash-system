@@ -1,5 +1,6 @@
 package com.carwash.service;
 
+import com.carwash.entity.Employee;
 import com.carwash.entity.Reservation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,15 @@ public interface ReservationService {
                                    Long couponId, String remark);
 
     Reservation confirm(Long reservationId, Long employeeId);
+
+    /**
+     * 後台指派（或改派）預約的服務員工；employeeId 為 null 代表取消指派。
+     * 員工必須在職、能做此服務項目、當天有排班且未請假、且時段不與他其他預約重疊。
+     */
+    Reservation assignEmployee(Long reservationId, Long employeeId);
+
+    /** 這筆預約目前可指派的員工清單（已套用 assignEmployee 的全部條件） */
+    List<Employee> listAssignableEmployees(Long reservationId);
 
     Reservation cancel(Long reservationId);
 

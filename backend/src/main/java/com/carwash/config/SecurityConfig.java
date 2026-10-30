@@ -82,8 +82,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/admin/schedules", "/api/closed-dates").hasAnyRole("ADMIN", "STAFF", "EMPLOYEE", "MEMBER")
                         .requestMatchers("/api/admin/**", "/api/employees/**").hasAnyRole("ADMIN", "STAFF")
                         // 預約的確認／完成是後台作業；跨會員的日期區間查詢會洩漏所有人的預約
-                        .requestMatchers(HttpMethod.PUT, "/api/reservations/*/confirm", "/api/reservations/*/complete").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers(HttpMethod.GET, "/api/reservations/by-date-range").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.PUT, "/api/reservations/*/confirm", "/api/reservations/*/complete", "/api/reservations/*/assign").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.GET, "/api/reservations/by-date-range", "/api/reservations/*/assignable-employees").hasAnyRole("ADMIN", "STAFF")
                         // 建立優惠券與發放只有後台能做，否則會員可以自己印券、發券給自己
                         .requestMatchers(HttpMethod.POST, "/api/coupons", "/api/coupons/*/issue", "/api/coupons/*/issue-batch").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/services/**").hasAnyRole("ADMIN", "STAFF")
