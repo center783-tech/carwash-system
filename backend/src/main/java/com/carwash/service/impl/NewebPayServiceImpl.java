@@ -38,7 +38,6 @@ import java.math.RoundingMode;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -65,8 +64,6 @@ public class NewebPayServiceImpl implements NewebPayService {
     private static final String ORDER_NO_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     /** 補查只看最近幾天內建立的付款單 */
     private static final int STALE_LOOKBACK_DAYS = 5;
-    /** ATM 虛擬帳號的繳費期限（天） */
-    private static final int ATM_EXPIRE_DAYS = 3;
 
     private final NewebPayProperties props;
     private final PaymentRepository paymentRepository;
@@ -82,7 +79,7 @@ public class NewebPayServiceImpl implements NewebPayService {
     @Override
     @Transactional
     public NewebPayPaymentFormResponse createPaymentForm(Long reservationId, Long memberId, PaymentMethod method) {
-        if (method != PaymentMethod.CREDIT_CARD && method != PaymentMethod.ATM) {
+        if (method != PaymentMethod.CREDIT_CARD) {
             throw new BusinessException("不支援的付款方式");
         }
         Reservation reservation = reservationRepository.findById(reservationId)
@@ -123,16 +120,10 @@ public class NewebPayServiceImpl implements NewebPayService {
         params.put("ItemDesc", reservation.getServiceItem().getName());
         params.put("ReturnURL", props.getReturnUrl());
         params.put("NotifyURL", props.getNotifyUrl());
-        // 藍新付款／取號結果頁的「返回商店」按鈕；ATM 取號後使用者要留在藍新頁抄帳號，所以不用 CustomerURL 自動導回
+        // 藍新付款結果頁的「返回商店」按鈕
         params.put("ClientBackURL", props.getReturnUrl());
         params.put("LoginType", "0");
-        if (method == PaymentMethod.ATM) {
-            params.put("VACC", "1");
-            // ATM 虛擬帳號繳費期限；超過就無法繳費（藍新預設 7 天，這裡縮短）
-            params.put("ExpireDate", LocalDate.now().plusDays(ATM_EXPIRE_DAYS).format(DateTimeFormatter.BASIC_ISO_DATE));
-        } else {
-            params.put("CREDIT", "1");
-        }
+        params.put("CREDIT", "1");
         String email = reservation.getMember().getEmail();
         if (email != null && !email.isBlank()) {
             params.put("Email", email);

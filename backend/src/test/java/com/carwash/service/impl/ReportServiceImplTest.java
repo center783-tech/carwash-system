@@ -40,13 +40,15 @@ class ReportServiceImplTest {
     private ReportServiceImpl service;
 
     private static Payment payment(String service, String amount, PaymentMethod method, PaymentStatus status,
-                                   LocalDateTime paidAt) {
+                                   LocalDateTime serviceAt) {
+        // 營收以預約服務日期認列：付款可能更早，所以付款時間故意設成服務日的 5 天前
         return Payment.builder()
-                .reservation(Reservation.builder().serviceItem(ServiceItem.builder().name(service).build()).build())
+                .reservation(Reservation.builder().serviceItem(ServiceItem.builder().name(service).build())
+                        .reservationDate(serviceAt.toLocalDate()).timeSlotStart(serviceAt.toLocalTime()).build())
                 .amount(new BigDecimal(amount))
                 .paymentMethod(method)
                 .paymentStatus(status)
-                .paidAt(paidAt)
+                .paidAt(serviceAt.minusDays(5))
                 .build();
     }
 

@@ -58,7 +58,7 @@ public class PaymentController {
     }
 
     /**
-     * 建立藍新付款單（method：CREDIT_CARD 信用卡、ATM 轉帳），回傳 MPG 表單欄位。
+     * 建立藍新付款單（method：目前只支援 CREDIT_CARD 信用卡），回傳 MPG 表單欄位。
      * 前端拿到後，建立隱藏表單 POST（MerchantID、TradeInfo、TradeSha、Version）到 gatewayUrl 即可跳轉刷卡頁。
      */
     @PostMapping("/reservations/{reservationId}/newebpay/form")

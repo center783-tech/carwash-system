@@ -47,9 +47,6 @@
           <el-button v-if="row.status === 'PENDING'" type="primary" link @click="handlePay(row.id, 'CREDIT_CARD')">
             信用卡付款
           </el-button>
-          <el-button v-if="row.status === 'PENDING'" type="primary" link @click="handlePay(row.id, 'ATM')">
-            ATM 轉帳
-          </el-button>
           <el-button
               v-if="row.status === 'PENDING' && row.paymentMethod !== 'CASH'"
               type="primary" link @click="handlePay(row.id, 'CASH')"

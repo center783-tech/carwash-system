@@ -797,8 +797,9 @@ defineExpose({ refresh: fetchData })
 /* ---------- 手機：班表欄位縮小，一屏看到更多天 ---------- */
 @media (max-width: 640px) {
   .roster {
-    min-width: 0;
-    --cols: 60px repeat(7, minmax(52px, 1fr));
+    /* 要有明確的最小寬度：列的底色才會跟著可捲動的內容一起鋪滿，不會往右滑時被裁掉 */
+    min-width: 392px;
+    --cols: 56px repeat(7, minmax(48px, 1fr));
   }
   .r-name {
     flex-direction: column;

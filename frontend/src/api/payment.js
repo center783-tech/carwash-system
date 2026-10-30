@@ -19,26 +19,13 @@ export function queryPendingNewebPayTrades() {
 }
 
 /**
- * 建立並送出隱藏表單到藍新付款頁
- * method：CREDIT_CARD 信用卡（整頁跳轉）/ ATM ATM 轉帳（開新分頁，關掉後原頁面仍在）
+ * 建立並送出隱藏表單到藍新付款頁（信用卡，整頁跳轉）
  */
 export async function payByNewebPay(reservationId, method = 'CREDIT_CARD') {
-  // 新分頁要在點擊當下同步開啟，等 await 之後才開會被瀏覽器當成彈出視窗擋掉
-  const newTab = method === 'ATM' ? window.open('', '_blank') : null
-  let f
-  try {
-    f = await createNewebPayForm(reservationId, method)
-  } catch (e) {
-    newTab?.close()
-    throw e
-  }
+  const f = await createNewebPayForm(reservationId, method)
   const form = document.createElement('form')
   form.method = 'POST'
   form.action = f.gatewayUrl
-  if (newTab) {
-    newTab.name = `newebpay-${reservationId}`
-    form.target = newTab.name
-  }
   const fields = { MerchantID: f.merchantId, TradeInfo: f.tradeInfo, TradeSha: f.tradeSha, Version: f.version }
   Object.entries(fields).forEach(([name, value]) => {
     const input = document.createElement('input')
@@ -49,9 +36,6 @@ export async function payByNewebPay(reservationId, method = 'CREDIT_CARD') {
   })
   document.body.appendChild(form)
   form.submit()
-  if (newTab) {
-    document.body.removeChild(form)
-  }
 }
 
 /** 會員選擇現場付現：建立現金付款單（未收款） */

@@ -51,13 +51,13 @@ public class ReportServiceImpl implements ReportService {
         LocalDate prevStart = plus(period, start, -1);
 
         List<Payment> settled = paymentRepository.findSettledBetween(
-                List.of(PaymentStatus.PAID, PaymentStatus.REFUNDED), start.atStartOfDay(), endExclusive.atStartOfDay());
+                List.of(PaymentStatus.PAID, PaymentStatus.REFUNDED), start, endExclusive);
         List<Payment> paid = settled.stream().filter(p -> p.getPaymentStatus() == PaymentStatus.PAID).toList();
         List<Payment> refunded = settled.stream().filter(p -> p.getPaymentStatus() == PaymentStatus.REFUNDED).toList();
 
         BigDecimal revenue = sum(paid);
         BigDecimal previousRevenue = sum(paymentRepository.findSettledBetween(
-                List.of(PaymentStatus.PAID), prevStart.atStartOfDay(), start.atStartOfDay()));
+                List.of(PaymentStatus.PAID), prevStart, start));
 
         Summary summary = new Summary(
                 revenue,
@@ -137,13 +137,18 @@ public class ReportServiceImpl implements ReportService {
         Map<String, Long> count = new LinkedHashMap<>();
         revenue.keySet().forEach(k -> count.put(k, 0L));
         for (Payment p : paid) {
-            String key = bucket.apply(p.getPaidAt());
+            String key = bucket.apply(serviceTimeOf(p));
             revenue.merge(key, p.getAmount(), BigDecimal::add);
             count.merge(key, 1L, Long::sum);
         }
         return revenue.entrySet().stream()
                 .map(e -> new TrendPoint(e.getKey(), e.getValue(), count.get(e.getKey())))
                 .toList();
+    }
+
+    /** 營收認列時間 = 預約的服務日期與開始時間（不是付款時間） */
+    private static LocalDateTime serviceTimeOf(Payment p) {
+        return p.getReservation().getReservationDate().atTime(p.getReservation().getTimeSlotStart());
     }
 
     private static List<MethodItem> byMethod(List<Payment> paid) {

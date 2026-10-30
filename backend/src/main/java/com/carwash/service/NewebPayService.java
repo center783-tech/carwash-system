@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface NewebPayService {
 
-    /** 為預約建立一筆付款單（信用卡或 ATM 轉帳），並回傳要 POST 到藍新 MPG 的表單欄位 */
+    /** 為預約建立一筆付款單（信用卡），並回傳要 POST 到藍新 MPG 的表單欄位 */
     NewebPayPaymentFormResponse createPaymentForm(Long reservationId, Long memberId, PaymentMethod method);
 
     /** 主動向藍新查詢交易結果；若已付款則補更新付款/預約狀態（NotifyURL 沒收到時的備援） */

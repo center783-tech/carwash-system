@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 營收報表。營收一律以「已付款（PAID）付款單的付款時間」認列；
+ * 營收報表。營收一律以「已付款（PAID）付款單所屬預約的服務日期」認列（提早預付也算在服務當天）；
  * 已退款的付款單不計入營收，另外列在 refundAmount。
  *
  * @param endDate 區間最後一天（含）

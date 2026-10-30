@@ -191,7 +191,6 @@
       <p class="pay-dialog__hint">預約已建立。線上付款成功後預約會自動確認；選「稍後再付」可之後到「我的預約」付款。</p>
       <div class="pay-dialog__actions">
         <el-button type="primary" size="large" @click="pickPayMethod('CREDIT_CARD')">信用卡付款</el-button>
-        <el-button type="primary" size="large" plain @click="pickPayMethod('ATM')">ATM 轉帳</el-button>
         <el-button size="large" @click="pickPayMethod('CASH')">現場付現</el-button>
         <el-button size="large" text @click="pickPayMethod(null)">稍後再付</el-button>
       </div>
@@ -371,7 +370,7 @@ watch(
     }
 )
 
-// 付款方式選擇視窗：回傳 CREDIT_CARD / ATM / CASH，或 null（稍後再付）
+// 付款方式選擇視窗：回傳 CREDIT_CARD / CASH，或 null（稍後再付）
 const payDialogVisible = ref(false)
 let payResolve = null
 function askPayMethod() {
