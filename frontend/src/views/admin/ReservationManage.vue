@@ -30,7 +30,13 @@
       </div>
     </div>
 
-    <el-table :data="reservations" v-loading="loading" class="desktop-only">
+    <el-tabs v-model="category" class="category-tabs">
+      <el-tab-pane v-for="c in categories" :key="c.key" :name="c.key">
+        <template #label>{{ c.label }}<span class="cat-count">{{ categoryCount(c.key) }}</span></template>
+      </el-tab-pane>
+    </el-tabs>
+
+    <el-table :data="filteredReservations" v-loading="loading" class="desktop-only">
       <el-table-column label="編號" width="80">
         <template #default="{ row }"><span class="order-no">{{ orderNo(row) }}</span></template>
       </el-table-column>
@@ -71,7 +77,7 @@
           >
             現場收款
           </el-button>
-          <el-button v-if="row.status === 'CONFIRMED'" link type="success" @click="handleComplete(row.id)">
+          <el-button v-if="row.status === 'CONFIRMED'" link type="success" @click="handleComplete(row)">
             標記完成
           </el-button>
         </template>
@@ -80,7 +86,7 @@
 
     <!-- 手機版：精簡卡片 -->
     <div class="mobile-only" v-loading="loading">
-      <div v-for="row in reservations" :key="row.id" class="rcard">
+      <div v-for="row in filteredReservations" :key="row.id" class="rcard">
         <div class="rcard-head">
           <span class="order-no">{{ orderNo(row) }}</span>
           <span class="rcard-time">{{ row.reservationDate.slice(5) }} {{ row.timeSlotStart }}</span>
@@ -99,12 +105,12 @@
         <div class="rcard-actions">
           <el-button v-if="row.status === 'PENDING'" size="small" type="primary" @click="handleConfirm(row.id)">確認</el-button>
           <el-button v-if="canCollectCash(row)" size="small" type="warning" @click="handleCollectCash(row)">現場收款</el-button>
-          <el-button v-if="row.status === 'CONFIRMED'" size="small" type="success" @click="handleComplete(row.id)">標記完成</el-button>
+          <el-button v-if="row.status === 'CONFIRMED'" size="small" type="success" @click="handleComplete(row)">標記完成</el-button>
         </div>
       </div>
     </div>
 
-    <el-empty v-if="!loading && reservations.length === 0" description="這個期間沒有預約紀錄" />
+    <el-empty v-if="!loading && filteredReservations.length === 0" description="沒有符合的預約紀錄" />
 
     <!-- 指派員工：只列出此時段可指派的人（在職、會此服務、當天有班、時段不衝突） -->
     <el-dialog v-model="assignVisible" title="指派員工" width="420px">
@@ -154,6 +160,29 @@ const orderNoMap = computed(() => {
   }
   return map
 })
+// 分類：依預約狀態／付款狀況篩選（已確認且已付款的歸在「已付款」）
+const categories = [
+  { key: 'ALL', label: '全部' },
+  { key: 'PENDING', label: '待確認' },
+  { key: 'PAID', label: '已付款' },
+  { key: 'UNPAID', label: '未付款' },
+  { key: 'COMPLETED', label: '已完成' },
+  { key: 'CANCELLED', label: '已取消' }
+]
+const category = ref('ALL')
+const inCategory = (row, key) => {
+  switch (key) {
+    case 'PENDING': return row.status === 'PENDING'
+    case 'PAID': return row.status !== 'CANCELLED' && row.status !== 'COMPLETED' && row.paymentStatus === 'PAID'
+    case 'UNPAID': return ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(row.status) && row.paymentStatus !== 'PAID'
+    case 'COMPLETED': return row.status === 'COMPLETED'
+    case 'CANCELLED': return row.status === 'CANCELLED'
+    default: return true
+  }
+}
+const categoryCount = (key) => reservations.value.filter((r) => inCategory(r, key)).length
+const filteredReservations = computed(() => reservations.value.filter((r) => inCategory(r, category.value)))
+
 const orderNo = (row) => orderNoMap.value[row.id] || ''
 
 const statusMap = {
@@ -278,8 +307,16 @@ async function handleConfirm(id) {
   fetchData()
 }
 
-async function handleComplete(id) {
-  await completeReservation(id)
+// 現場付現且尚未收款的預約：標記完成前先確認收款，收款後一併標記完成
+async function handleComplete(row) {
+  if (row.paymentMethod === 'CASH' && row.paymentStatus !== 'PAID') {
+    await ElMessageBox.confirm(`這筆是現場收款，尚未收款。確認已向會員收取現金 NT$ ${row.totalAmount}？收款後將一併標記完成。`, '現場收款', {
+      confirmButtonText: '確認收款並完成',
+      cancelButtonText: '取消'
+    })
+    await collectCashPayment(row.id)
+  }
+  await completeReservation(row.id)
   ElMessage.success('已標記完成')
   fetchData()
 }
@@ -319,6 +356,12 @@ onMounted(fetchData)
 }
 .assign-hint {
   margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-text-secondary);
+}
+.category-tabs :deep(.el-tabs__header) { margin-bottom: 12px; }
+.cat-count {
+  margin-left: 4px;
   font-size: 12px;
   color: var(--ink-text-secondary);
 }

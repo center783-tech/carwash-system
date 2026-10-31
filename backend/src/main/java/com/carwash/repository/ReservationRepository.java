@@ -63,6 +63,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByStatus(ReservationStatus status);
 
+    /** 建立時間早於 cutoff、仍待確認、有信用卡未付款單且沒有任何已付款單的預約（逾時未付款，供自動取消） */
+    @org.springframework.data.jpa.repository.Query("select r from Reservation r "
+            + "where r.status = com.carwash.constant.ReservationStatus.PENDING and r.createdAt < :cutoff "
+            + "and exists (select 1 from Payment p where p.reservation = r "
+            + "and p.paymentMethod = com.carwash.constant.PaymentMethod.CREDIT_CARD "
+            + "and p.paymentStatus = com.carwash.constant.PaymentStatus.UNPAID) "
+            + "and not exists (select 1 from Payment p2 where p2.reservation = r "
+            + "and p2.paymentStatus = com.carwash.constant.PaymentStatus.PAID)")
+    List<Reservation> findUnpaidCreditCardBefore(
+            @org.springframework.data.repository.query.Param("cutoff") java.time.LocalDateTime cutoff);
+
     /** 檢查同一時段是否已被預約，用來做時段管理/避免重複預約 */
     boolean existsByEmployeeIdAndReservationDateAndTimeSlotStartAndStatusNot(
             Long employeeId,
