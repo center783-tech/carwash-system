@@ -30,7 +30,10 @@
       </div>
     </div>
 
-    <el-table :data="reservations" v-loading="loading">
+    <el-table :data="reservations" v-loading="loading" class="desktop-only">
+      <el-table-column label="編號" width="80">
+        <template #default="{ row }"><span class="order-no">{{ orderNo(row) }}</span></template>
+      </el-table-column>
       <el-table-column prop="reservationDate" label="日期" width="110" />
       <el-table-column prop="memberName" label="會員" />
       <el-table-column prop="plateNumber" label="車牌" />
@@ -75,6 +78,32 @@
       </el-table-column>
     </el-table>
 
+    <!-- 手機版：精簡卡片 -->
+    <div class="mobile-only" v-loading="loading">
+      <div v-for="row in reservations" :key="row.id" class="rcard">
+        <div class="rcard-head">
+          <span class="order-no">{{ orderNo(row) }}</span>
+          <span class="rcard-time">{{ row.reservationDate.slice(5) }} {{ row.timeSlotStart }}</span>
+          <el-tag size="small" :type="rowStatusTagType(row)">{{ rowStatusText(row) }}</el-tag>
+        </div>
+        <div class="rcard-main">{{ row.plateNumber }}・{{ row.serviceName }}</div>
+        <div class="rcard-sub">
+          {{ row.memberName }}・NT$ {{ row.totalAmount }}・{{ paymentText(row) }}
+        </div>
+        <div class="rcard-sub">
+          員工：<span v-if="row.employeeName">{{ row.employeeName }}</span><span v-else class="unassigned">未指派</span>
+          <el-button v-if="canAssign(row)" link type="primary" @click="openAssign(row)">
+            {{ row.employeeName ? '改派' : '指派' }}
+          </el-button>
+        </div>
+        <div class="rcard-actions">
+          <el-button v-if="row.status === 'PENDING'" size="small" type="primary" @click="handleConfirm(row.id)">確認</el-button>
+          <el-button v-if="canCollectCash(row)" size="small" type="warning" @click="handleCollectCash(row)">現場收款</el-button>
+          <el-button v-if="row.status === 'CONFIRMED'" size="small" type="success" @click="handleComplete(row.id)">標記完成</el-button>
+        </div>
+      </div>
+    </div>
+
     <el-empty v-if="!loading && reservations.length === 0" description="這個期間沒有預約紀錄" />
 
     <!-- 指派員工：只列出此時段可指派的人（在職、會此服務、當天有班、時段不衝突） -->
@@ -98,7 +127,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AdminNav from '@/components/AdminNav.vue'
 import {
@@ -109,6 +138,23 @@ import { collectCashPayment } from '@/api/payment'
 
 const reservations = ref([])
 const loading = ref(false)
+
+// 預約編號：星期字母（週一=A、週二=B…週日=G）＋ 當天流水號（001 起，依建立順序）
+const WEEK_LETTERS = ['G', 'A', 'B', 'C', 'D', 'E', 'F'] // Date.getDay(): 0=週日
+const orderNoMap = computed(() => {
+  const byDate = {}
+  for (const r of reservations.value) (byDate[r.reservationDate] ||= []).push(r)
+  const map = {}
+  for (const [date, list] of Object.entries(byDate)) {
+    const [y, m, d] = date.split('-').map(Number)
+    const letter = WEEK_LETTERS[new Date(y, m - 1, d).getDay()]
+    ;[...list].sort((a, b) => a.id - b.id).forEach((r, i) => {
+      map[r.id] = letter + String(i + 1).padStart(3, '0')
+    })
+  }
+  return map
+})
+const orderNo = (row) => orderNoMap.value[row.id] || ''
 
 const statusMap = {
   PENDING: { text: '待確認', type: 'info' },
@@ -275,6 +321,30 @@ onMounted(fetchData)
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--ink-text-secondary);
+}
+.order-no {
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--el-color-primary);
+}
+.mobile-only { display: none; }
+.rcard {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+}
+.rcard-head { display: flex; align-items: center; gap: 8px; }
+.rcard-time { flex: 1; font-size: 13px; color: var(--ink-text-secondary); }
+.rcard-main { margin-top: 6px; font-size: 15px; font-weight: 500; }
+.rcard-sub { margin-top: 2px; font-size: 12px; color: var(--ink-text-secondary); }
+.rcard-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.rcard-actions:empty { display: none; }
+@media (max-width: 768px) {
+  .desktop-only { display: none; }
+  .mobile-only { display: block; }
+  .page-container { margin: 12px auto; }
+  .filter-label { width: auto; }
 }
 .header-row {
   display: flex;
