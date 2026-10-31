@@ -309,6 +309,14 @@ async function handleConfirm(id) {
 
 // 現場付現且尚未收款的預約：標記完成前先確認收款，收款後一併標記完成
 async function handleComplete(row) {
+  // 不是今天的預約：先提醒，確定才繼續
+  if (row.reservationDate !== toDateString(new Date())) {
+    await ElMessageBox.confirm(`這不是今天的預約（${row.reservationDate}），確定要改成已完成？`, '非當天預約', {
+      confirmButtonText: '確定完成',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  }
   if (row.paymentMethod === 'CASH' && row.paymentStatus !== 'PAID') {
     await ElMessageBox.confirm(`這筆是現場收款，尚未收款。確認已向會員收取現金 NT$ ${row.totalAmount}？收款後將一併標記完成。`, '現場收款', {
       confirmButtonText: '確認收款並完成',
