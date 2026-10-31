@@ -37,15 +37,15 @@
     </el-tabs>
 
     <el-table :data="filteredReservations" v-loading="loading" class="desktop-only">
-      <el-table-column label="編號" width="80">
+      <el-table-column label="編號" width="90" sortable :sort-method="(a, b) => cmp(orderNo(a), orderNo(b))">
         <template #default="{ row }"><span class="order-no">{{ orderNo(row) }}</span></template>
       </el-table-column>
-      <el-table-column prop="reservationDate" label="日期" width="110" />
-      <el-table-column prop="memberName" label="會員" />
-      <el-table-column prop="plateNumber" label="車牌" />
-      <el-table-column prop="zoneName" label="車位區" />
-      <el-table-column prop="serviceName" label="服務項目" />
-      <el-table-column label="指派員工">
+      <el-table-column prop="reservationDate" label="日期" width="120" sortable />
+      <el-table-column prop="memberName" label="會員" sortable />
+      <el-table-column prop="plateNumber" label="車牌" sortable />
+      <el-table-column prop="zoneName" label="車位區" sortable />
+      <el-table-column prop="serviceName" label="服務項目" sortable />
+      <el-table-column label="指派員工" sortable :sort-method="(a, b) => cmp(a.employeeName || '', b.employeeName || '')">
         <template #default="{ row }">
           <span v-if="row.employeeName">{{ row.employeeName }}</span>
           <span v-else class="unassigned">未指派</span>
@@ -54,14 +54,14 @@
           </el-button>
         </template>
       </el-table-column>
-      <el-table-column prop="timeSlotStart" label="時段" />
-      <el-table-column prop="totalAmount" label="金額" />
-      <el-table-column label="狀態">
+      <el-table-column prop="timeSlotStart" label="時段" sortable />
+      <el-table-column prop="totalAmount" label="金額" sortable :sort-method="(a, b) => a.totalAmount - b.totalAmount" />
+      <el-table-column label="狀態" sortable :sort-method="(a, b) => cmp(rowStatusText(a), rowStatusText(b))">
         <template #default="{ row }">
           <el-tag :type="rowStatusTagType(row)">{{ rowStatusText(row) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="付款">
+      <el-table-column label="付款" sortable :sort-method="(a, b) => cmp(paymentText(a), paymentText(b))">
         <template #default="{ row }">
           <el-tag :type="paymentTagType(row.paymentStatus)">{{ paymentText(row) }}</el-tag>
         </template>
@@ -86,7 +86,14 @@
 
     <!-- 手機版：精簡卡片 -->
     <div class="mobile-only" v-loading="loading">
-      <div v-for="row in filteredReservations" :key="row.id" class="rcard">
+      <div class="sort-bar">
+        <span class="filter-label">排序</span>
+        <el-select v-model="mobileSortKey" size="small" style="width: 120px">
+          <el-option v-for="o in mobileSortOptions" :key="o.key" :value="o.key" :label="o.label" />
+        </el-select>
+        <el-button size="small" @click="mobileSortAsc = !mobileSortAsc">{{ mobileSortAsc ? '由小到大 ↑' : '由大到小 ↓' }}</el-button>
+      </div>
+      <div v-for="row in mobileSorted" :key="row.id" class="rcard">
         <div class="rcard-head">
           <span class="order-no">{{ orderNo(row) }}</span>
           <span class="rcard-time">{{ row.reservationDate.slice(5) }} {{ row.timeSlotStart }}</span>
@@ -182,6 +189,33 @@ const inCategory = (row, key) => {
 }
 const categoryCount = (key) => reservations.value.filter((r) => inCategory(r, key)).length
 const filteredReservations = computed(() => reservations.value.filter((r) => inCategory(r, category.value)))
+
+const cmp = (a, b) => String(a).localeCompare(String(b), 'zh-Hant')
+
+// 手機版沒有表頭可點，改用排序選單
+const mobileSortOptions = [
+  { key: 'time', label: '日期時段' },
+  { key: 'no', label: '編號' },
+  { key: 'amount', label: '金額' },
+  { key: 'member', label: '會員' },
+  { key: 'status', label: '狀態' }
+]
+const mobileSortKey = ref('time')
+const mobileSortAsc = ref(true)
+const sortValue = (r) => ({
+  time: `${r.reservationDate} ${r.timeSlotStart}`,
+  no: orderNo(r),
+  amount: Number(r.totalAmount),
+  member: r.memberName || '',
+  status: rowStatusText(r)
+}[mobileSortKey.value])
+const mobileSorted = computed(() => {
+  const dir = mobileSortAsc.value ? 1 : -1
+  return [...filteredReservations.value].sort((a, b) => {
+    const x = sortValue(a), y = sortValue(b)
+    return (typeof x === 'number' ? x - y : cmp(x, y)) * dir
+  })
+})
 
 const orderNo = (row) => orderNoMap.value[row.id] || ''
 
@@ -372,6 +406,12 @@ onMounted(fetchData)
   margin-left: 4px;
   font-size: 12px;
   color: var(--ink-text-secondary);
+}
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 .order-no {
   font-weight: 600;
