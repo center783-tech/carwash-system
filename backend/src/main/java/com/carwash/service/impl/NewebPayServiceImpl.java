@@ -124,6 +124,11 @@ public class NewebPayServiceImpl implements NewebPayService {
         params.put("ClientBackURL", props.getReturnUrl());
         params.put("LoginType", "0");
         params.put("CREDIT", "1");
+        // 只開放信用卡：其餘支付方式不傳的話會依藍新商店後台設定顯示，這裡明確關閉
+        for (String off : new String[]{"VACC", "WEBATM", "CVS", "BARCODE", "ANDROIDPAY", "SAMSUNGPAY",
+                "LINEPAY", "TWQR", "EZPAY", "EZPWECHAT", "EZPALIPAY", "CVSCOM"}) {
+            params.put(off, "0");
+        }
         String email = reservation.getMember().getEmail();
         if (email != null && !email.isBlank()) {
             params.put("Email", email);
